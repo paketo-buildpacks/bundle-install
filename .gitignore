@@ -1,0 +1,6 @@
+/*.tgz
+.DS_Store
+.idea
+/.bin
+bin
+bundle-install_*
