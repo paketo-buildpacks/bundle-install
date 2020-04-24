@@ -7,8 +7,9 @@ import (
 	"github.com/sclevine/spec/report"
 )
 
-func TestUnitYarn(t *testing.T) {
+func TestUnitBundleInstall(t *testing.T) {
 	suite := spec.New("bundle-install", spec.Report(report.Terminal{}))
 	suite("Detect", testDetect)
+	suite("Build", testBuild)
 	suite.Run(t)
 }

@@ -3,6 +3,7 @@ module github.com/paketo-community/bundle-install
 go 1.14
 
 require (
+	github.com/cloudfoundry/bundler-cnb v0.0.89
 	github.com/cloudfoundry/dagger v0.0.0-20200409132447-59248c69607b
 	github.com/cloudfoundry/occam v0.0.2
 	github.com/cloudfoundry/packit v0.0.4

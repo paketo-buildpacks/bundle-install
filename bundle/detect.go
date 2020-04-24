@@ -5,7 +5,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/cloudfoundry/bundler-cnb/bundler"
 	"github.com/cloudfoundry/packit"
+)
+
+const (
+	GemDependency = "gems"
 )
 
 type BuildPlanMetadata struct {
@@ -28,18 +33,18 @@ func Detect() packit.DetectFunc {
 		return packit.DetectResult{
 			Plan: packit.BuildPlan{
 				Provides: []packit.BuildPlanProvision{
-					{Name: "gems"},
+					{Name: GemDependency},
 				},
 				Requires: []packit.BuildPlanRequirement{
 					{
-						Name: "gems",
+						Name: GemDependency,
 						Metadata: BuildPlanMetadata{
 							Build:  false,
 							Launch: true,
 						},
 					},
 					{
-						Name: "bundler",
+						Name: bundler.Bundler,
 						Metadata: BuildPlanMetadata{
 							Build:  true,
 							Launch: false,
