@@ -2,6 +2,7 @@ package bundle_test
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"io/ioutil"
@@ -23,6 +24,10 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 		var err error
 		workingDir, err = ioutil.TempDir("", "working-dir")
 		Expect(err).NotTo(HaveOccurred())
+
+		err = ioutil.WriteFile(filepath.Join(workingDir, "Gemfile"), []byte{}, 0644)
+		Expect(err).NotTo(HaveOccurred())
+
 		detect = bundle.Detect()
 	})
 
@@ -46,8 +51,27 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 						Launch: true,
 					},
 				},
+				{
+					Name: "bundler",
+					Metadata: bundle.BuildPlanMetadata{
+						Build: true,
+					},
+				},
 			},
 		}))
 
 	})
+
+	context("when the Gemfile file does not exist", func() {
+		it.Before(func() {
+			Expect(os.Remove(filepath.Join(workingDir, "Gemfile"))).To(Succeed())
+		})
+		it("fails detection", func() {
+			_, err := detect(packit.DetectContext{
+				WorkingDir: workingDir,
+			})
+			Expect(err).To(MatchError(packit.Fail))
+		})
+	})
+
 }

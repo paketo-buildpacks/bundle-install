@@ -1,7 +1,9 @@
 package bundle
 
 import (
-	"fmt"
+	"errors"
+	"os"
+	"path/filepath"
 
 	"github.com/cloudfoundry/packit"
 )
@@ -13,6 +15,38 @@ type BuildPlanMetadata struct {
 
 func Detect() packit.DetectFunc {
 	return func(context packit.DetectContext) (packit.DetectResult, error) {
-		return packit.DetectResult{}, fmt.Errorf("always fail")
+		_, err := os.Stat(filepath.Join(context.WorkingDir, "Gemfile"))
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return packit.DetectResult{}, packit.Fail
+			}
+
+			return packit.DetectResult{}, err
+		}
+
+		// TODO: Read version info and process
+		return packit.DetectResult{
+			Plan: packit.BuildPlan{
+				Provides: []packit.BuildPlanProvision{
+					{Name: "gems"},
+				},
+				Requires: []packit.BuildPlanRequirement{
+					{
+						Name: "gems",
+						Metadata: BuildPlanMetadata{
+							Build:  false,
+							Launch: true,
+						},
+					},
+					{
+						Name: "bundler",
+						Metadata: BuildPlanMetadata{
+							Build:  true,
+							Launch: false,
+						},
+					},
+				},
+			},
+		}, nil
 	}
 }

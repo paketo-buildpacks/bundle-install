@@ -1,9 +1,13 @@
 api = "0.2"
 
 [buildpack]
-  id = "paketo-buildpacks/bundler"
+  id = "paketo-community.bundle-install"
   name = "Bundle Install Buildpack"
   version = "0.0.1"
+
+[metadata]
+  include_files = ["bin/build", "bin/detect", "buildpack.toml"]
+  pre_package = "./scripts/build.sh"
 
 [[stacks]]
   id = "org.cloudfoundry.stacks.cflinuxfs3"
