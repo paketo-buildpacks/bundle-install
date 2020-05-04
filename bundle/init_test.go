@@ -8,8 +8,10 @@ import (
 )
 
 func TestUnitBundleInstall(t *testing.T) {
-	suite := spec.New("bundle-install", spec.Report(report.Terminal{}))
-	suite("Detect", testDetect)
+	suite := spec.New("bundle-install", spec.Report(report.Terminal{}), spec.Parallel())
 	suite("Build", testBuild)
+	suite("BundleInstallProcess", testBundleInstallProcess)
+	suite("Detect", testDetect)
+	suite("GemfileParser", testGemfileParser)
 	suite.Run(t)
 }

@@ -2,23 +2,24 @@ package bundle
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/cloudfoundry/bundler-cnb/bundler"
 	"github.com/cloudfoundry/packit"
 )
 
-const (
-	GemDependency = "gems"
-)
+//go:generate faux --interface VersionParser --output fakes/version_parser.go
+type VersionParser interface {
+	ParseVersion(path string) (version string, err error)
+}
 
 type BuildPlanMetadata struct {
 	Build  bool `toml:"build"`
 	Launch bool `toml:"launch"`
 }
 
-func Detect() packit.DetectFunc {
+func Detect(gemfileParser VersionParser) packit.DetectFunc {
 	return func(context packit.DetectContext) (packit.DetectResult, error) {
 		_, err := os.Stat(filepath.Join(context.WorkingDir, "Gemfile"))
 		if err != nil {
@@ -26,28 +27,40 @@ func Detect() packit.DetectFunc {
 				return packit.DetectResult{}, packit.Fail
 			}
 
-			return packit.DetectResult{}, err
+			panic(err)
 		}
 
-		// TODO: Read version info and process
+		mriVersion, err := gemfileParser.ParseVersion(filepath.Join(context.WorkingDir, "Gemfile"))
+		if err != nil {
+			return packit.DetectResult{}, fmt.Errorf("failed to parse Gemfile: %w", err)
+		}
+
 		return packit.DetectResult{
 			Plan: packit.BuildPlan{
 				Provides: []packit.BuildPlanProvision{
-					{Name: GemDependency},
+					{Name: GemsDependency},
 				},
 				Requires: []packit.BuildPlanRequirement{
 					{
-						Name: GemDependency,
+						Name: GemsDependency,
 						Metadata: BuildPlanMetadata{
 							Build:  false,
 							Launch: true,
 						},
 					},
 					{
-						Name: bundler.Bundler,
+						Name: BundlerDependency,
 						Metadata: BuildPlanMetadata{
 							Build:  true,
-							Launch: false,
+							Launch: true,
+						},
+					},
+					{
+						Name:    MRIDependency,
+						Version: mriVersion,
+						Metadata: BuildPlanMetadata{
+							Build:  true,
+							Launch: true,
 						},
 					},
 				},
