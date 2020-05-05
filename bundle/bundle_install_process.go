@@ -3,7 +3,6 @@ package bundle
 import (
 	"bytes"
 	"fmt"
-	"os"
 
 	"github.com/cloudfoundry/packit/pexec"
 )
@@ -34,10 +33,11 @@ func (ip BundleInstallProcess) Execute(workingDir, gemLayersDir string) error {
 		return fmt.Errorf("failed to execute bundle config output:\n%s\nerror: %s", buffer.String(), err)
 	}
 
+	buffer = bytes.NewBuffer(nil)
 	err = ip.executable.Execute(pexec.Execution{
 		Args:   []string{"install"},
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+		Stdout: buffer,
+		Stderr: buffer,
 	})
 
 	if err != nil {

@@ -1,7 +1,7 @@
 package bundle
 
 import (
-	"fmt"
+	"time"
 
 	"github.com/cloudfoundry/packit"
 )
@@ -11,10 +11,13 @@ type InstallProcess interface {
 	Execute(workingDir, layerPath string) error
 }
 
-func Build(installProcess InstallProcess) packit.BuildFunc {
+func Build(
+	installProcess InstallProcess,
+	logger LogEmitter,
+	clock Clock,
+) packit.BuildFunc {
 	return func(context packit.BuildContext) (packit.BuildResult, error) {
-		//Output statement until LogEmitter is implemented
-		fmt.Println("\nBundle Install CNB")
+		logger.Title("%s %s", context.BuildpackInfo.Name, context.BuildpackInfo.Version)
 
 		gemsLayer, err := context.Layers.Get(LayerNameGems, packit.LaunchLayer)
 		if err != nil {
@@ -25,12 +28,18 @@ func Build(installProcess InstallProcess) packit.BuildFunc {
 			return packit.BuildResult{}, err
 		}
 
-		gemsLayer.SharedEnv.Default("BUNDLE_PATH", gemsLayer.Path)
-
+		logger.Process("Executing build process")
+		logger.Subprocess("Running 'bundle install'")
+		then := clock.Now()
 		err = installProcess.Execute(context.WorkingDir, gemsLayer.Path)
 		if err != nil {
 			return packit.BuildResult{}, err
 		}
+		logger.Action("Completed in %s", time.Since(then).Round(time.Millisecond))
+		logger.Break()
+
+		gemsLayer.SharedEnv.Default("BUNDLE_PATH", gemsLayer.Path)
+		logger.Environment(gemsLayer.SharedEnv)
 
 		return packit.BuildResult{
 			Plan: packit.BuildpackPlan{

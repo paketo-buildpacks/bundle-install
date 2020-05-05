@@ -1,11 +1,13 @@
 package bundle_test
 
 import (
+	"bytes"
 	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/cloudfoundry/packit"
 	"github.com/paketo-community/bundle-install/bundle"
@@ -22,6 +24,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		layersDir  string
 		workingDir string
 		cnbDir     string
+		buffer     *bytes.Buffer
+		timeStamp  time.Time
+
+		clock bundle.Clock
 
 		installProcess *fakes.InstallProcess
 
@@ -41,7 +47,15 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 		installProcess = &fakes.InstallProcess{}
 
-		build = bundle.Build(installProcess)
+		buffer = bytes.NewBuffer(nil)
+		logEmitter := bundle.NewLogEmitter(buffer)
+
+		timeStamp = time.Now()
+		clock = bundle.NewClock(func() time.Time {
+			return timeStamp
+		})
+
+		build = bundle.Build(installProcess, logEmitter, clock)
 	})
 
 	it.After(func() {
@@ -98,6 +112,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		}))
 
 		Expect(filepath.Join(layersDir, "gems")).To(BeADirectory())
+
+		Expect(buffer.String()).To(ContainSubstring("Some Buildpack some-version"))
+		Expect(buffer.String()).To(ContainSubstring("Executing build process"))
+		Expect(buffer.String()).To(ContainSubstring("Configuring environment"))
 	})
 
 	context("failure cases", func() {

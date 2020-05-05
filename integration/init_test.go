@@ -1,12 +1,15 @@
 package integration_test
 
 import (
+	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/cloudfoundry/dagger"
 	"github.com/cloudfoundry/occam"
+	"github.com/cloudfoundry/packit/pexec"
 	"github.com/sclevine/spec"
 	"github.com/sclevine/spec/report"
 
@@ -51,6 +54,7 @@ func TestIntegration(t *testing.T) {
 
 	suite := spec.New("Integration", spec.Parallel(), spec.Report(report.Terminal{}))
 	suite("SimpleApp", testSimpleApp)
+	suite("Logging", testLogging)
 
 	dagger.SyncParallelOutput(func() { suite.Run(t) })
 }
@@ -62,4 +66,23 @@ func ContainerLogs(id string) func() string {
 		logs, _ := docker.Container.Logs.Execute(id)
 		return logs.String()
 	}
+}
+
+func GetGitVersion() (string, error) {
+	gitExec := pexec.NewExecutable("git")
+	buffer := bytes.NewBuffer(nil)
+	err := gitExec.Execute(pexec.Execution{
+		Args:   []string{"describe", "--abbrev=0", "--tags"},
+		Stdout: buffer,
+		Stderr: buffer,
+	})
+	if err != nil {
+		if strings.Contains(buffer.String(), "No names found, cannot describe anything") {
+			return "0.0.0", nil
+		}
+
+		return "", err
+	}
+
+	return strings.TrimSpace(strings.TrimPrefix(buffer.String(), "v")), nil
 }
