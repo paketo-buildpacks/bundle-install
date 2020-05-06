@@ -70,19 +70,24 @@ func ContainerLogs(id string) func() string {
 
 func GetGitVersion() (string, error) {
 	gitExec := pexec.NewExecutable("git")
-	buffer := bytes.NewBuffer(nil)
+	revListOut := bytes.NewBuffer(nil)
+
 	err := gitExec.Execute(pexec.Execution{
-		Args:   []string{"describe", "--abbrev=0", "--tags"},
-		Stdout: buffer,
-		Stderr: buffer,
+		Args:   []string{"rev-list", "--tags", "--max-count=1"},
+		Stdout: revListOut,
 	})
 	if err != nil {
-		if strings.Contains(buffer.String(), "No names found, cannot describe anything") {
-			return "0.0.0", nil
-		}
-
 		return "", err
 	}
 
-	return strings.TrimSpace(strings.TrimPrefix(buffer.String(), "v")), nil
+	stdout := bytes.NewBuffer(nil)
+	err = gitExec.Execute(pexec.Execution{
+		Args:   []string{"describe", "--tags", strings.TrimSpace(revListOut.String())},
+		Stdout: stdout,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(strings.TrimPrefix(stdout.String(), "v")), nil
 }
