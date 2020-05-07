@@ -6,5 +6,7 @@ import (
 )
 
 func main() {
-	packit.Detect(bundle.Detect())
+	gemfileParser := bundle.NewGemfileParser()
+
+	packit.Detect(bundle.Detect(gemfileParser))
 }
