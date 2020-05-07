@@ -56,11 +56,11 @@ func testLogging(t *testing.T, context spec.G, it spec.S) {
 			Expect(logs).To(ContainLines(
 				fmt.Sprintf("Bundle Install Buildpack %s", buildpackVersion),
 				"  Executing build process",
-				MatchRegexp(`    Running 'bundle install'`),
+				`    Running 'bundle install'`,
 				MatchRegexp(`      Completed in \d+\.?\d*`),
 				"",
 				"  Configuring environment",
-				MatchRegexp(`    BUNDLE_PATH -> "/layers/paketo-community.bundle-install/gems"`),
+				`    BUNDLE_PATH -> "/layers/paketo-community_bundle-install/gems"`,
 			))
 		})
 	})
