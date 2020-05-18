@@ -1,0 +1,17 @@
+[[requires]]
+  name = "gems"
+
+  [requires.metadata]
+    launch = true
+
+[[requires]]
+  name = "bundler"
+
+  [requires.metadata]
+    launch = true
+
+[[requires]]
+  name = "mri"
+
+  [requires.metadata]
+    launch = true

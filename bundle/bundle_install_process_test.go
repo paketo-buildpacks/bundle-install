@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cloudfoundry/packit/pexec"
+	"github.com/paketo-buildpacks/packit/pexec"
 	"github.com/paketo-community/bundle-install/bundle"
 	"github.com/paketo-community/bundle-install/bundle/fakes"
 	"github.com/sclevine/spec"

@@ -8,7 +8,7 @@ import (
 
 	"io/ioutil"
 
-	"github.com/cloudfoundry/packit"
+	"github.com/paketo-buildpacks/packit"
 	"github.com/paketo-community/bundle-install/bundle"
 	"github.com/paketo-community/bundle-install/bundle/fakes"
 	"github.com/sclevine/spec"
@@ -53,40 +53,19 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 			},
 			Requires: []packit.BuildPlanRequirement{
 				{
-					Name: "gems",
-					Metadata: bundle.BuildPlanMetadata{
-						Launch: true,
-					},
-				},
-				{
 					Name: "bundler",
 					Metadata: bundle.BuildPlanMetadata{
-						Build:  true,
-						Launch: true,
+						Build: true,
 					},
 				},
 				{
 					Name: "mri",
 					Metadata: bundle.BuildPlanMetadata{
-						Build:  true,
-						Launch: true,
+						Build: true,
 					},
 				},
 			},
 		}))
-	})
-
-	context("when the Gemfile file does not exist", func() {
-		it.Before(func() {
-			Expect(os.Remove(filepath.Join(workingDir, "Gemfile"))).To(Succeed())
-		})
-
-		it("fails detection", func() {
-			_, err := detect(packit.DetectContext{
-				WorkingDir: workingDir,
-			})
-			Expect(err).To(MatchError(packit.Fail))
-		})
 	})
 
 	context("when the Gemfile specifies an mri ruby version", func() {
@@ -105,24 +84,16 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 				},
 				Requires: []packit.BuildPlanRequirement{
 					{
-						Name: "gems",
-						Metadata: bundle.BuildPlanMetadata{
-							Launch: true,
-						},
-					},
-					{
 						Name: "bundler",
 						Metadata: bundle.BuildPlanMetadata{
-							Build:  true,
-							Launch: true,
+							Build: true,
 						},
 					},
 					{
 						Name:    "mri",
 						Version: "2.6.x",
 						Metadata: bundle.BuildPlanMetadata{
-							Build:  true,
-							Launch: true,
+							Build: true,
 						},
 					},
 				},

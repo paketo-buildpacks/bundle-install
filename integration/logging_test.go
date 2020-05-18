@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/cloudfoundry/occam"
+	"github.com/paketo-buildpacks/occam"
 	"github.com/sclevine/spec"
 
-	. "github.com/cloudfoundry/occam/matchers"
 	. "github.com/onsi/gomega"
+	. "github.com/paketo-buildpacks/occam/matchers"
 )
 
 func testLogging(t *testing.T, context spec.G, it spec.S) {
@@ -46,7 +46,7 @@ func testLogging(t *testing.T, context spec.G, it spec.S) {
 			var logs fmt.Stringer
 			image, logs, err = pack.WithNoColor().Build.
 				WithNoPull().
-				WithBuildpacks(mriURI, bundlerURI, bundleInstallURI).
+				WithBuildpacks(mriURI, bundlerURI, bundleInstallURI, buildPlanURI).
 				Execute(name, filepath.Join("testdata", "simple_app"))
 			Expect(err).ToNot(HaveOccurred(), logs.String)
 

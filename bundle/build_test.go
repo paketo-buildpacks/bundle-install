@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudfoundry/packit"
+	"github.com/paketo-buildpacks/packit"
 	"github.com/paketo-community/bundle-install/bundle"
 	"github.com/paketo-community/bundle-install/bundle/fakes"
 	"github.com/sclevine/spec"
