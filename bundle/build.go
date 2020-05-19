@@ -3,7 +3,7 @@ package bundle
 import (
 	"time"
 
-	"github.com/cloudfoundry/packit"
+	"github.com/paketo-buildpacks/packit"
 )
 
 //go:generate faux --interface InstallProcess --output fakes/install_process.go

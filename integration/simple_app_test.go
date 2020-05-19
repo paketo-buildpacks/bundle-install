@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/cloudfoundry/occam"
+	"github.com/paketo-buildpacks/occam"
 	"github.com/sclevine/spec"
 
-	. "github.com/cloudfoundry/occam/matchers"
 	. "github.com/onsi/gomega"
+	. "github.com/paketo-buildpacks/occam/matchers"
 )
 
 func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
@@ -51,7 +51,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 		it("creates a working OCI image", func() {
 			var err error
 			image, _, err = pack.WithVerbose().Build.
-				WithBuildpacks(mriURI, bundlerURI, bundleInstallURI).
+				WithBuildpacks(mriURI, bundlerURI, bundleInstallURI, buildPlanURI).
 				WithNoPull().
 				Execute(name, filepath.Join("testdata", "simple_app"))
 			Expect(err).NotTo(HaveOccurred())

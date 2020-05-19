@@ -1,12 +1,10 @@
 package bundle
 
 import (
-	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 
-	"github.com/cloudfoundry/packit"
+	"github.com/paketo-buildpacks/packit"
 )
 
 //go:generate faux --interface VersionParser --output fakes/version_parser.go
@@ -21,15 +19,6 @@ type BuildPlanMetadata struct {
 
 func Detect(gemfileParser VersionParser) packit.DetectFunc {
 	return func(context packit.DetectContext) (packit.DetectResult, error) {
-		_, err := os.Stat(filepath.Join(context.WorkingDir, "Gemfile"))
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				return packit.DetectResult{}, packit.Fail
-			}
-
-			panic(err)
-		}
-
 		mriVersion, err := gemfileParser.ParseVersion(filepath.Join(context.WorkingDir, "Gemfile"))
 		if err != nil {
 			return packit.DetectResult{}, fmt.Errorf("failed to parse Gemfile: %w", err)
@@ -42,25 +31,16 @@ func Detect(gemfileParser VersionParser) packit.DetectFunc {
 				},
 				Requires: []packit.BuildPlanRequirement{
 					{
-						Name: GemsDependency,
-						Metadata: BuildPlanMetadata{
-							Build:  false,
-							Launch: true,
-						},
-					},
-					{
 						Name: BundlerDependency,
 						Metadata: BuildPlanMetadata{
-							Build:  true,
-							Launch: true,
+							Build: true,
 						},
 					},
 					{
 						Name:    MRIDependency,
 						Version: mriVersion,
 						Metadata: BuildPlanMetadata{
-							Build:  true,
-							Launch: true,
+							Build: true,
 						},
 					},
 				},
