@@ -3,8 +3,8 @@ package bundle
 import (
 	"io"
 
-	"github.com/cloudfoundry/packit"
-	"github.com/cloudfoundry/packit/scribe"
+	"github.com/paketo-buildpacks/packit"
+	"github.com/paketo-buildpacks/packit/scribe"
 )
 
 type LogEmitter struct {

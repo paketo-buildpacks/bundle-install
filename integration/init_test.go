@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/cloudfoundry/dagger"
-	"github.com/cloudfoundry/occam"
-	"github.com/cloudfoundry/packit/pexec"
+	"github.com/paketo-buildpacks/occam"
+	"github.com/paketo-buildpacks/packit/pexec"
 	"github.com/sclevine/spec"
 	"github.com/sclevine/spec/report"
 
@@ -21,6 +21,7 @@ var (
 	bundleInstallURI string
 	bundlerURI       string
 	mriURI           string
+	buildPlanURI     string
 )
 
 func TestIntegration(t *testing.T) {
@@ -44,10 +45,14 @@ func TestIntegration(t *testing.T) {
 	mriURI, err = dagger.GetLatestCommunityBuildpack("cloudfoundry", "mri-cnb")
 	Expect(err).ToNot(HaveOccurred())
 
+	buildPlanURI, err = dagger.GetLatestCommunityBuildpack("ForestEckhardt", "build-plan")
+	Expect(err).ToNot(HaveOccurred())
+
 	defer func() {
 		dagger.DeleteBuildpack(bundleInstallURI)
 		dagger.DeleteBuildpack(bundlerURI)
 		dagger.DeleteBuildpack(mriURI)
+		dagger.DeleteBuildpack(buildPlanURI)
 	}()
 
 	SetDefaultEventuallyTimeout(10 * time.Second)
