@@ -3,7 +3,6 @@ api = "0.2"
 [buildpack]
   id = "paketo-community/bundle-install"
   name = "Bundle Install Buildpack"
-  version = "0.0.1"
 
 [metadata]
   include_files = ["bin/build", "bin/detect", "buildpack.toml"]
