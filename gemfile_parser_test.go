@@ -1,4 +1,4 @@
-package bundle_test
+package bundleinstall_test
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/paketo-community/bundle-install/bundle"
+	bundleinstall "github.com/paketo-community/bundle-install"
 	"github.com/sclevine/spec"
 
 	. "github.com/onsi/gomega"
@@ -22,7 +22,7 @@ func testGemfileParser(t *testing.T, context spec.G, it spec.S) {
 		Expect = NewWithT(t).Expect
 
 		path   string
-		parser bundle.GemfileParser
+		parser bundleinstall.GemfileParser
 	)
 
 	it.Before(func() {
@@ -32,7 +32,7 @@ func testGemfileParser(t *testing.T, context spec.G, it spec.S) {
 
 		path = file.Name()
 
-		parser = bundle.NewGemfileParser()
+		parser = bundleinstall.NewGemfileParser()
 	})
 
 	it.After(func() {

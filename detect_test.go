@@ -1,16 +1,15 @@
-package bundle_test
+package bundleinstall_test
 
 import (
 	"errors"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"io/ioutil"
-
 	"github.com/paketo-buildpacks/packit"
-	"github.com/paketo-community/bundle-install/bundle"
-	"github.com/paketo-community/bundle-install/bundle/fakes"
+	bundleinstall "github.com/paketo-community/bundle-install"
+	"github.com/paketo-community/bundle-install/fakes"
 	"github.com/sclevine/spec"
 
 	. "github.com/onsi/gomega"
@@ -35,7 +34,7 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 
 		gemfileParser = &fakes.VersionParser{}
 
-		detect = bundle.Detect(gemfileParser)
+		detect = bundleinstall.Detect(gemfileParser)
 	})
 
 	it.After(func() {
@@ -54,13 +53,13 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 			Requires: []packit.BuildPlanRequirement{
 				{
 					Name: "bundler",
-					Metadata: bundle.BuildPlanMetadata{
+					Metadata: bundleinstall.BuildPlanMetadata{
 						Build: true,
 					},
 				},
 				{
 					Name: "mri",
-					Metadata: bundle.BuildPlanMetadata{
+					Metadata: bundleinstall.BuildPlanMetadata{
 						Build: true,
 					},
 				},
@@ -85,14 +84,14 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 				Requires: []packit.BuildPlanRequirement{
 					{
 						Name: "bundler",
-						Metadata: bundle.BuildPlanMetadata{
+						Metadata: bundleinstall.BuildPlanMetadata{
 							Build: true,
 						},
 					},
 					{
 						Name:    "mri",
 						Version: "2.6.x",
-						Metadata: bundle.BuildPlanMetadata{
+						Metadata: bundleinstall.BuildPlanMetadata{
 							Build: true,
 						},
 					},

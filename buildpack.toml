@@ -5,7 +5,7 @@ api = "0.2"
   name = "Bundle Install Buildpack"
 
 [metadata]
-  include_files = ["bin/build", "bin/detect", "buildpack.toml"]
+  include_files = ["bin/build", "bin/detect", "bin/run", "buildpack.toml"]
   pre_package = "./scripts/build.sh"
 
 [[stacks]]
