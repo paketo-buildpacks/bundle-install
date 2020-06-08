@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/paketo-buildpacks/packit"
+	"github.com/paketo-buildpacks/packit/chronos"
 )
 
 //go:generate faux --interface InstallProcess --output fakes/install_process.go
@@ -14,7 +15,7 @@ type InstallProcess interface {
 func Build(
 	installProcess InstallProcess,
 	logger LogEmitter,
-	clock Clock,
+	clock chronos.Clock,
 ) packit.BuildFunc {
 	return func(context packit.BuildContext) (packit.BuildResult, error) {
 		logger.Title("%s %s", context.BuildpackInfo.Name, context.BuildpackInfo.Version)
@@ -30,12 +31,14 @@ func Build(
 
 		logger.Process("Executing build process")
 		logger.Subprocess("Running 'bundle install'")
-		then := clock.Now()
-		err = installProcess.Execute(context.WorkingDir, gemsLayer.Path)
+		duration, err := clock.Measure(func() error {
+			return installProcess.Execute(context.WorkingDir, gemsLayer.Path)
+		})
 		if err != nil {
 			return packit.BuildResult{}, err
 		}
-		logger.Action("Completed in %s", time.Since(then).Round(time.Millisecond))
+
+		logger.Action("Completed in %s", duration.Round(time.Millisecond))
 		logger.Break()
 
 		gemsLayer.SharedEnv.Default("BUNDLE_PATH", gemsLayer.Path)
