@@ -1,4 +1,4 @@
-package bundle_test
+package bundleinstall_test
 
 import (
 	"bytes"
@@ -11,8 +11,8 @@ import (
 
 	"github.com/paketo-buildpacks/packit"
 	"github.com/paketo-buildpacks/packit/chronos"
-	"github.com/paketo-community/bundle-install/bundle"
-	"github.com/paketo-community/bundle-install/bundle/fakes"
+	bundleinstall "github.com/paketo-community/bundle-install"
+	"github.com/paketo-community/bundle-install/fakes"
 	"github.com/sclevine/spec"
 
 	. "github.com/onsi/gomega"
@@ -49,14 +49,14 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		installProcess = &fakes.InstallProcess{}
 
 		buffer = bytes.NewBuffer(nil)
-		logEmitter := bundle.NewLogEmitter(buffer)
+		logEmitter := bundleinstall.NewLogEmitter(buffer)
 
 		timeStamp = time.Now()
 		clock = chronos.NewClock(func() time.Time {
 			return timeStamp
 		})
 
-		build = bundle.Build(installProcess, logEmitter, clock)
+		build = bundleinstall.Build(installProcess, logEmitter, clock)
 	})
 
 	it.After(func() {
@@ -154,7 +154,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		context("when the layer directory cannot be removed", func() {
 			var layerDir string
 			it.Before(func() {
-				layerDir = filepath.Join(layersDir, bundle.LayerNameGems)
+				layerDir = filepath.Join(layersDir, bundleinstall.LayerNameGems)
 				Expect(os.MkdirAll(filepath.Join(layerDir, "baller"), os.ModePerm)).To(Succeed())
 				Expect(os.Chmod(layerDir, 0000)).To(Succeed())
 			})

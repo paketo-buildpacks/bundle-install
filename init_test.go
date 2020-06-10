@@ -1,4 +1,4 @@
-package bundle_test
+package bundleinstall_test
 
 import (
 	"testing"

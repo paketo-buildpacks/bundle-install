@@ -1,4 +1,4 @@
-package bundle_test
+package bundleinstall_test
 
 import (
 	"errors"
@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/paketo-buildpacks/packit/pexec"
-	"github.com/paketo-community/bundle-install/bundle"
-	"github.com/paketo-community/bundle-install/bundle/fakes"
+	bundleinstall "github.com/paketo-community/bundle-install"
+	"github.com/paketo-community/bundle-install/fakes"
 	"github.com/sclevine/spec"
 
 	. "github.com/onsi/gomega"
@@ -25,7 +25,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 			executions []pexec.Execution
 			executable *fakes.Executable
 
-			installProcess bundle.BundleInstallProcess
+			installProcess bundleinstall.BundleInstallProcess
 		)
 
 		it.Before(func() {
@@ -44,7 +44,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 			path = os.Getenv("PATH")
 			os.Setenv("PATH", "/some/bin")
 
-			installProcess = bundle.NewBundleInstallProcess(executable)
+			installProcess = bundleinstall.NewBundleInstallProcess(executable)
 		})
 
 		it.After(func() {
