@@ -74,5 +74,34 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(string(content)).To(ContainSubstring("Hello world!"))
 		})
+
+		context("the version of bundler in the Gemfile.lock is 1.17.x", func() {
+			it("creates a working OCI image", func() {
+				var err error
+				image, _, err = pack.WithVerbose().Build.
+					WithBuildpacks(mriURI, bundlerURI, bundleInstallURI, buildPlanURI).
+					WithNoPull().
+					Execute(name, filepath.Join("testdata", "bundler_version_1_17"))
+				Expect(err).NotTo(HaveOccurred())
+
+				container, err = docker.Container.Run.
+					WithCommand("env && echo \"bundle -> $(which bundle)\" && cat $(which bundle) && bundle exec rackup").
+					WithEnv(map[string]string{"PORT": "9292"}).
+					Execute(image.ID)
+				Expect(err).NotTo(HaveOccurred())
+
+				Eventually(container).Should(BeAvailable(), ContainerLogs(container.ID))
+
+				response, err := http.Get(fmt.Sprintf("http://localhost:%s", container.HostPort()))
+				Expect(err).NotTo(HaveOccurred())
+				defer response.Body.Close()
+
+				Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+				content, err := ioutil.ReadAll(response.Body)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(string(content)).To(ContainSubstring("Hello world!"))
+			})
+		})
 	})
 }

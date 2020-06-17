@@ -58,16 +58,8 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(executions).To(HaveLen(2))
-			Expect(executions[0].Args).To(Equal([]string{
-				"config",
-				"set",
-				"path",
-				"some-dir",
-			}))
-
-			Expect(executions[1].Args).To(Equal([]string{
-				"install",
-			}))
+			Expect(executions[0].Args).To(Equal([]string{"config", "path", "some-dir"}))
+			Expect(executions[1].Args).To(Equal([]string{"install"}))
 		})
 
 		context("failure cases", func() {

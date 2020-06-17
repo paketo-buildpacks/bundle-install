@@ -25,7 +25,7 @@ func NewBundleInstallProcess(executable Executable) BundleInstallProcess {
 func (ip BundleInstallProcess) Execute(workingDir, gemLayersDir string) error {
 	buffer := bytes.NewBuffer(nil)
 	err := ip.executable.Execute(pexec.Execution{
-		Args:   []string{"config", "set", "path", gemLayersDir},
+		Args:   []string{"config", "path", gemLayersDir},
 		Stdout: buffer,
 		Stderr: buffer,
 	})
