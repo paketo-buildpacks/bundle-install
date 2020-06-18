@@ -7,7 +7,7 @@ require (
 	github.com/cloudfoundry/dagger v0.0.0-20200507133748-931d91514ab2
 	github.com/mitchellh/mapstructure v1.3.0 // indirect
 	github.com/onsi/gomega v1.10.1
-	github.com/paketo-buildpacks/occam v0.0.12
-	github.com/paketo-buildpacks/packit v0.0.14
+	github.com/paketo-buildpacks/occam v0.0.13
+	github.com/paketo-buildpacks/packit v0.0.15
 	github.com/sclevine/spec v1.4.0
 )
