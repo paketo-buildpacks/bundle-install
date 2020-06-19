@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -33,7 +34,8 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			image     occam.Image
 			container occam.Container
 
-			name string
+			name   string
+			source string
 		)
 
 		it.Before(func() {
@@ -46,14 +48,18 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			Expect(docker.Container.Remove.Execute(container.ID)).To(Succeed())
 			Expect(docker.Image.Remove.Execute(image.ID)).To(Succeed())
 			Expect(docker.Volume.Remove.Execute(occam.CacheVolumeNames(name))).To(Succeed())
+			Expect(os.RemoveAll(source)).To(Succeed())
 		})
 
 		it("creates a working OCI image", func() {
 			var err error
+			source, err = occam.Source(filepath.Join("testdata", "simple_app"))
+			Expect(err).NotTo(HaveOccurred())
+
 			image, _, err = pack.WithVerbose().Build.
 				WithBuildpacks(mriURI, bundlerURI, bundleInstallURI, buildPlanURI).
 				WithNoPull().
-				Execute(name, filepath.Join("testdata", "simple_app"))
+				Execute(name, source)
 			Expect(err).NotTo(HaveOccurred())
 
 			container, err = docker.Container.Run.
@@ -78,10 +84,13 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 		context("the version of bundler in the Gemfile.lock is 1.17.x", func() {
 			it("creates a working OCI image", func() {
 				var err error
+				source, err = occam.Source(filepath.Join("testdata", "bundler_version_1_17"))
+				Expect(err).NotTo(HaveOccurred())
+
 				image, _, err = pack.WithVerbose().Build.
 					WithBuildpacks(mriURI, bundlerURI, bundleInstallURI, buildPlanURI).
 					WithNoPull().
-					Execute(name, filepath.Join("testdata", "bundler_version_1_17"))
+					Execute(name, source)
 				Expect(err).NotTo(HaveOccurred())
 
 				container, err = docker.Container.Run.

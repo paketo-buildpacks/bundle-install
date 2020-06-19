@@ -34,19 +34,19 @@ func TestIntegration(t *testing.T) {
 	Expect(err).NotTo(HaveOccurred())
 
 	bundleInstallURI, err = dagger.PackageBuildpack(bpDir)
-	Expect(err).ToNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	// HACK: we need to fix dagger and the package.sh scripts so that this isn't required
 	bundleInstallURI = fmt.Sprintf("%s.tgz", bundleInstallURI)
 
 	bundlerURI, err = dagger.GetLatestCommunityBuildpack("cloudfoundry", "bundler-cnb")
-	Expect(err).ToNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	mriURI, err = dagger.GetLatestCommunityBuildpack("cloudfoundry", "mri-cnb")
-	Expect(err).ToNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	buildPlanURI, err = dagger.GetLatestCommunityBuildpack("ForestEckhardt", "build-plan")
-	Expect(err).ToNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	defer func() {
 		dagger.DeleteBuildpack(bundleInstallURI)
@@ -57,7 +57,7 @@ func TestIntegration(t *testing.T) {
 
 	SetDefaultEventuallyTimeout(10 * time.Second)
 
-	suite := spec.New("Integration", spec.Parallel(), spec.Report(report.Terminal{}))
+	suite := spec.New("Integration", spec.Report(report.Terminal{}), spec.Parallel())
 	suite("SimpleApp", testSimpleApp)
 	suite("Logging", testLogging)
 
