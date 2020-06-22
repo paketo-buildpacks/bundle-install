@@ -2,6 +2,7 @@ package bundleinstall_test
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -67,8 +68,8 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				it.Before(func() {
 					executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
 						if strings.Contains(strings.Join(execution.Args, " "), "config") {
-							execution.Stdout.Write([]byte("stdout output"))
-							execution.Stderr.Write([]byte("stderr output"))
+							fmt.Fprint(execution.Stdout, "stdout output")
+							fmt.Fprint(execution.Stderr, "stderr output")
 
 							return errors.New("bundle config failed")
 						}
@@ -87,8 +88,8 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				it.Before(func() {
 					executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
 						if strings.Contains(strings.Join(execution.Args, " "), "install") {
-							execution.Stdout.Write([]byte("stdout output"))
-							execution.Stderr.Write([]byte("stderr output"))
+							fmt.Fprint(execution.Stdout, "stdout output")
+							fmt.Fprint(execution.Stderr, "stderr output")
 
 							return errors.New("bundle install failed")
 						}
