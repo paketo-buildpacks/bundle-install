@@ -23,6 +23,7 @@ var (
 	mriURI           string
 	buildPlanURI     string
 )
+
 func TestIntegration(t *testing.T) {
 	var (
 		Expect = NewWithT(t).Expect
