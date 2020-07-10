@@ -1,50 +1,71 @@
 package integration_test
 
 import (
-	"bytes"
-	"fmt"
-	"strings"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/cloudfoundry/dagger"
-	"github.com/paketo-buildpacks/packit/pexec"
+	"github.com/paketo-buildpacks/occam"
 	"github.com/sclevine/spec"
 	"github.com/sclevine/spec/report"
 
 	. "github.com/onsi/gomega"
 )
 
-var (
-	bpDir            string
-	bundleInstallURI string
-	bundlerURI       string
-	mriURI           string
-	buildPlanURI     string
-)
+var settings struct {
+	Buildpacks struct {
+		BundleInstall struct {
+			Online string
+		}
+		Bundler struct {
+			Online string
+		}
+		MRI struct {
+			Online string
+		}
+		BuildPlan struct {
+			Online string
+		}
+	}
+
+	Config struct {
+		Bundler   string `json:"bundler"`
+		MRI       string `json:"mri"`
+		BuildPlan string `json:"build-plan"`
+	}
+}
 
 func TestIntegration(t *testing.T) {
-	var (
-		Expect = NewWithT(t).Expect
-		err    error
-	)
+	Expect := NewWithT(t).Expect
 
-	bpDir, err = dagger.FindBPRoot()
+	file, err := os.Open("../integration.json")
 	Expect(err).NotTo(HaveOccurred())
 
-	bundleInstallURI, err = dagger.PackageBuildpack(bpDir)
+	Expect(json.NewDecoder(file).Decode(&settings.Config)).To(Succeed())
+	Expect(file.Close()).To(Succeed())
+
+	root, err := filepath.Abs("./..")
 	Expect(err).NotTo(HaveOccurred())
 
-	// HACK: we need to fix dagger and the package.sh scripts so that this isn't required
-	bundleInstallURI = fmt.Sprintf("%s.tgz", bundleInstallURI)
+	buildpackStore := occam.NewBuildpackStore()
 
-	bundlerURI, err = dagger.GetLatestCommunityBuildpack("cloudfoundry", "bundler-cnb")
+	settings.Buildpacks.BundleInstall.Online, err = buildpackStore.Get.
+		WithVersion("1.2.3").
+		Execute(root)
 	Expect(err).NotTo(HaveOccurred())
 
-	mriURI, err = dagger.GetLatestCommunityBuildpack("cloudfoundry", "mri-cnb")
+	settings.Buildpacks.Bundler.Online, err = buildpackStore.Get.
+		Execute(settings.Config.Bundler)
 	Expect(err).NotTo(HaveOccurred())
 
-	buildPlanURI, err = dagger.GetLatestCommunityBuildpack("ForestEckhardt", "build-plan")
+	settings.Buildpacks.MRI.Online, err = buildpackStore.Get.
+		Execute(settings.Config.MRI)
+	Expect(err).NotTo(HaveOccurred())
+
+	settings.Buildpacks.BuildPlan.Online, err = buildpackStore.Get.
+		Execute(settings.Config.BuildPlan)
 	Expect(err).NotTo(HaveOccurred())
 
 	SetDefaultEventuallyTimeout(10 * time.Second)
@@ -52,45 +73,5 @@ func TestIntegration(t *testing.T) {
 	suite := spec.New("Integration", spec.Report(report.Terminal{}), spec.Parallel())
 	suite("SimpleApp", testSimpleApp)
 	suite("Logging", testLogging)
-
-	defer AfterSuite(t)
 	suite.Run(t)
-}
-
-func AfterSuite(t *testing.T) {
-	var Expect = NewWithT(t).Expect
-
-	Expect(dagger.DeleteBuildpack(bundleInstallURI)).To(Succeed())
-	Expect(dagger.DeleteBuildpack(bundlerURI)).To(Succeed())
-	Expect(dagger.DeleteBuildpack(mriURI)).To(Succeed())
-	Expect(dagger.DeleteBuildpack(buildPlanURI)).To(Succeed())
-}
-
-func GetGitVersion() (string, error) {
-	gitExec := pexec.NewExecutable("git")
-	revListOut := bytes.NewBuffer(nil)
-
-	err := gitExec.Execute(pexec.Execution{
-		Args:   []string{"rev-list", "--tags", "--max-count=1"},
-		Stdout: revListOut,
-	})
-
-	if revListOut.String() == "" {
-		return "0.0.0", nil
-	}
-
-	if err != nil {
-		return "", err
-	}
-
-	stdout := bytes.NewBuffer(nil)
-	err = gitExec.Execute(pexec.Execution{
-		Args:   []string{"describe", "--tags", strings.TrimSpace(revListOut.String())},
-		Stdout: stdout,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return strings.TrimSpace(strings.TrimPrefix(stdout.String(), "v")), nil
 }
