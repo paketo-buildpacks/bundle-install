@@ -57,7 +57,12 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			Expect(err).NotTo(HaveOccurred())
 
 			image, _, err = pack.WithVerbose().Build.
-				WithBuildpacks(mriURI, bundlerURI, bundleInstallURI, buildPlanURI).
+				WithBuildpacks(
+					settings.Buildpacks.MRI.Online,
+					settings.Buildpacks.Bundler.Online,
+					settings.Buildpacks.BundleInstall.Online,
+					settings.Buildpacks.BuildPlan.Online,
+				).
 				WithNoPull().
 				Execute(name, source)
 			Expect(err).NotTo(HaveOccurred())
@@ -88,7 +93,12 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 				Expect(err).NotTo(HaveOccurred())
 
 				image, _, err = pack.WithVerbose().Build.
-					WithBuildpacks(mriURI, bundlerURI, bundleInstallURI, buildPlanURI).
+					WithBuildpacks(
+						settings.Buildpacks.MRI.Online,
+						settings.Buildpacks.Bundler.Online,
+						settings.Buildpacks.BundleInstall.Online,
+						settings.Buildpacks.BuildPlan.Online,
+					).
 					WithNoPull().
 					Execute(name, source)
 				Expect(err).NotTo(HaveOccurred())
