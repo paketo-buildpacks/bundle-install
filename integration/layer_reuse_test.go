@@ -2,8 +2,10 @@ package integration_test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/paketo-buildpacks/occam"
@@ -202,13 +204,12 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 
 			Eventually(firstContainer).Should(BeAvailable())
 
-			f, err := os.OpenFile(filepath.Join(source, "Gemfile"), os.O_APPEND|os.O_WRONLY, 0644)
+			contents, err := ioutil.ReadFile(filepath.Join(source, "Gemfile.lock"))
 			Expect(err).NotTo(HaveOccurred())
 
-			_, err = f.WriteString("# some comment\n")
+			err = ioutil.WriteFile(filepath.Join(source, "Gemfile.lock"),
+				[]byte(strings.ReplaceAll(string(contents), "sinatra (1.4.4)", "sinatra (1.4.5)")), 0644)
 			Expect(err).NotTo(HaveOccurred())
-
-			Expect(f.Close()).To(Succeed())
 
 			// Second pack build
 			secondImage, logs, err = build.Execute(name, source)
