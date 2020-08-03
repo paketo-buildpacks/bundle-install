@@ -3,6 +3,7 @@ package bundleinstall_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -31,6 +32,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		clock chronos.Clock
 
 		installProcess *fakes.InstallProcess
+		calculator     *fakes.Calculator
 
 		build packit.BuildFunc
 	)
@@ -56,7 +58,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			return timeStamp
 		})
 
-		build = bundleinstall.Build(installProcess, logEmitter, clock)
+		calculator = &fakes.Calculator{}
+		calculator.SumCall.Returns.String = "some-calculator-sha"
+
+		build = bundleinstall.Build(installProcess, calculator, logEmitter, clock)
 	})
 
 	it.After(func() {
@@ -108,6 +113,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					Build:  false,
 					Launch: true,
 					Cache:  false,
+					Metadata: map[string]interface{}{
+						"built_at":  timeStamp.Format(time.RFC3339Nano),
+						"cache_sha": "some-calculator-sha",
+					},
 				},
 			},
 		}))
@@ -117,6 +126,64 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		Expect(buffer.String()).To(ContainSubstring("Some Buildpack some-version"))
 		Expect(buffer.String()).To(ContainSubstring("Executing build process"))
 		Expect(buffer.String()).To(ContainSubstring("Configuring environment"))
+	})
+
+	context("when rebuilding a layer", func() {
+		it.Before(func() {
+			err := ioutil.WriteFile(filepath.Join(layersDir, fmt.Sprintf("%s.toml", bundleinstall.LayerNameGems)), []byte(fmt.Sprintf(`[metadata]
+			cache_sha = "some-calculator-sha"
+			built_at = "%s"
+			`, timeStamp.Format(time.RFC3339Nano))), 0644)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		it("does not run the install process", func() {
+			result, err := build(packit.BuildContext{
+				WorkingDir: workingDir,
+				CNBPath:    cnbDir,
+				Stack:      "some-stack",
+				BuildpackInfo: packit.BuildpackInfo{
+					Name:    "Some Buildpack",
+					Version: "some-version",
+				},
+				Plan: packit.BuildpackPlan{
+					Entries: []packit.BuildpackPlanEntry{
+						{
+							Name: "gems",
+						},
+					},
+				},
+				Layers: packit.Layers{Path: layersDir},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(result).To(Equal(packit.BuildResult{
+				Plan: packit.BuildpackPlan{
+					Entries: []packit.BuildpackPlanEntry{
+						{
+							Name: "gems",
+						},
+					},
+				},
+				Layers: []packit.Layer{
+					{
+						Name:      "gems",
+						Path:      filepath.Join(layersDir, "gems"),
+						LaunchEnv: packit.Environment{},
+						BuildEnv:  packit.Environment{},
+						SharedEnv: packit.Environment{},
+						Build:     false,
+						Launch:    true,
+						Cache:     false,
+						Metadata: map[string]interface{}{
+							"built_at":  timeStamp.Format(time.RFC3339Nano),
+							"cache_sha": "some-calculator-sha",
+						},
+					},
+				},
+			}))
+			Expect(installProcess.ExecuteCall.CallCount).To(Equal(0))
+		})
 	})
 
 	context("failure cases", func() {
