@@ -1,6 +1,8 @@
 package bundleinstall
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -32,13 +34,22 @@ func Build(
 			return packit.BuildResult{}, err
 		}
 
-		sum, err := calculator.Sum(filepath.Join(context.WorkingDir, "Gemfile"))
-		if err != nil {
-			return packit.BuildResult{}, err
+		sum := ""
+
+		_, err = os.Stat(filepath.Join(context.WorkingDir, "Gemfile.lock"))
+		if err != nil && !os.IsNotExist(err) {
+			return packit.BuildResult{}, fmt.Errorf("failed to stat Gemfile.lock: %w", err)
+		}
+
+		if err == nil {
+			sum, err = calculator.Sum(filepath.Join(context.WorkingDir, "Gemfile.lock"))
+			if err != nil {
+				return packit.BuildResult{}, err
+			}
 		}
 
 		cachedSHA, ok := gemsLayer.Metadata["cache_sha"].(string)
-		if ok && cachedSHA == sum {
+		if ok && cachedSHA != "" && cachedSHA == sum {
 			logger.Process("Reusing cached layer %s", gemsLayer.Path)
 			logger.Break()
 
