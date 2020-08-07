@@ -1,6 +1,7 @@
 package bundleinstall_test
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -45,7 +46,9 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 			path = os.Getenv("PATH")
 			os.Setenv("PATH", "/some/bin")
 
-			installProcess = bundleinstall.NewBundleInstallProcess(executable)
+			logEmitter := bundleinstall.NewLogEmitter(bytes.NewBuffer(nil))
+
+			installProcess = bundleinstall.NewBundleInstallProcess(executable, logEmitter)
 		})
 
 		it.After(func() {

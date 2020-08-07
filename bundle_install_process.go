@@ -3,6 +3,7 @@ package bundleinstall
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/paketo-buildpacks/packit/pexec"
 )
@@ -14,18 +15,23 @@ type Executable interface {
 
 type BundleInstallProcess struct {
 	executable Executable
+	logger     LogEmitter
 }
 
-func NewBundleInstallProcess(executable Executable) BundleInstallProcess {
+func NewBundleInstallProcess(executable Executable, logger LogEmitter) BundleInstallProcess {
 	return BundleInstallProcess{
 		executable: executable,
+		logger:     logger,
 	}
 }
 
 func (ip BundleInstallProcess) Execute(workingDir, gemLayersDir string) error {
 	buffer := bytes.NewBuffer(nil)
+	args := []string{"config", "path", gemLayersDir}
+
+	ip.logger.Subprocess("Running 'bundle %s'", strings.Join(args, " "))
 	err := ip.executable.Execute(pexec.Execution{
-		Args:   []string{"config", "path", gemLayersDir},
+		Args:   args,
 		Stdout: buffer,
 		Stderr: buffer,
 	})
@@ -34,8 +40,11 @@ func (ip BundleInstallProcess) Execute(workingDir, gemLayersDir string) error {
 	}
 
 	buffer = bytes.NewBuffer(nil)
+	args = []string{"install"}
+
+	ip.logger.Subprocess("Running 'bundle %s'", strings.Join(args, " "))
 	err = ip.executable.Execute(pexec.Execution{
-		Args:   []string{"install"},
+		Args:   args,
 		Stdout: buffer,
 		Stderr: buffer,
 	})
