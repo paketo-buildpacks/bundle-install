@@ -11,17 +11,18 @@ import (
 )
 
 func main() {
-	gemfileParser := bundleinstall.NewGemfileParser()
-	executable := pexec.NewExecutable("bundle")
 	logEmitter := bundleinstall.NewLogEmitter(os.Stdout)
-	installProcess := bundleinstall.NewBundleInstallProcess(executable)
-	calculator := fs.NewChecksumCalculator()
 
 	packit.Run(
-		bundleinstall.Detect(gemfileParser),
+		bundleinstall.Detect(
+			bundleinstall.NewGemfileParser(),
+		),
 		bundleinstall.Build(
-			installProcess,
-			calculator,
+			bundleinstall.NewBundleInstallProcess(
+				pexec.NewExecutable("bundle"),
+				logEmitter,
+			),
+			fs.NewChecksumCalculator(),
 			logEmitter,
 			chronos.DefaultClock,
 		),

@@ -68,8 +68,6 @@ func Build(
 		}
 
 		logger.Process("Executing build process")
-		logger.Subprocess("Running 'bundle install'")
-
 		duration, err := clock.Measure(func() error {
 			return installProcess.Execute(context.WorkingDir, gemsLayer.Path)
 		})
