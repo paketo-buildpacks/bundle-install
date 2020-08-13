@@ -93,7 +93,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 			Expect(firstImage.Buildpacks[2].Layers).To(HaveKey("gems"))
 
 			Expect(logs).To(ContainLines(
-				"Bundle Install Buildpack 1.2.3",
+				"Paketo Bundle Install Buildpack 1.2.3",
 				"  Executing build process",
 				"    Running 'bundle config path /layers/paketo-community_bundle-install/gems'",
 				"    Running 'bundle install'",
@@ -129,7 +129,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 			Expect(secondImage.Buildpacks[2].Layers).To(HaveKey("gems"))
 
 			Expect(logs).To(ContainLines(
-				"Bundle Install Buildpack 1.2.3",
+				"Paketo Bundle Install Buildpack 1.2.3",
 				"  Reusing cached layer /layers/paketo-community_bundle-install/gems",
 			))
 
@@ -186,7 +186,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 			Expect(firstImage.Buildpacks[2].Layers).To(HaveKey("gems"))
 
 			Expect(logs).To(ContainLines(
-				"Bundle Install Buildpack 1.2.3",
+				"Paketo Bundle Install Buildpack 1.2.3",
 				"  Executing build process",
 				"    Running 'bundle config path /layers/paketo-community_bundle-install/gems'",
 				"    Running 'bundle install'",
