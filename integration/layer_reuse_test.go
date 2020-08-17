@@ -89,18 +89,18 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 			Expect(firstImage.Buildpacks[0].Layers).To(HaveKey("mri"))
 			Expect(firstImage.Buildpacks[1].Key).To(Equal("paketo-community/bundler"))
 			Expect(firstImage.Buildpacks[1].Layers).To(HaveKey("bundler"))
-			Expect(firstImage.Buildpacks[2].Key).To(Equal("paketo-community/bundle-install"))
+			Expect(firstImage.Buildpacks[2].Key).To(Equal(settings.Buildpack.ID))
 			Expect(firstImage.Buildpacks[2].Layers).To(HaveKey("gems"))
 
 			Expect(logs).To(ContainLines(
 				MatchRegexp(fmt.Sprintf(`%s \d+\.\d+\.\d+`, settings.Buildpack.Name)),
 				"  Executing build process",
-				"    Running 'bundle config path /layers/paketo-community_bundle-install/gems'",
+				MatchRegexp(fmt.Sprintf("    Running 'bundle config path /layers/%s/gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
 				"    Running 'bundle install'",
 				MatchRegexp(`      Completed in \d+\.?\d*`),
 				"",
 				"  Configuring environment",
-				`    BUNDLE_PATH -> "/layers/paketo-community_bundle-install/gems"`,
+				MatchRegexp(fmt.Sprintf(`    BUNDLE_PATH -> "/layers/%s/gems"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
 			))
 
 			firstContainer, err = docker.Container.Run.
@@ -125,12 +125,12 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 			Expect(secondImage.Buildpacks[0].Layers).To(HaveKey("mri"))
 			Expect(secondImage.Buildpacks[1].Key).To(Equal("paketo-community/bundler"))
 			Expect(secondImage.Buildpacks[1].Layers).To(HaveKey("bundler"))
-			Expect(secondImage.Buildpacks[2].Key).To(Equal("paketo-community/bundle-install"))
+			Expect(secondImage.Buildpacks[2].Key).To(Equal(settings.Buildpack.ID))
 			Expect(secondImage.Buildpacks[2].Layers).To(HaveKey("gems"))
 
 			Expect(logs).To(ContainLines(
 				MatchRegexp(fmt.Sprintf(`%s \d+\.\d+\.\d+`, settings.Buildpack.Name)),
-				"  Reusing cached layer /layers/paketo-community_bundle-install/gems",
+				MatchRegexp(fmt.Sprintf("  Reusing cached layer /layers/%s/gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
 			))
 
 			secondContainer, err = docker.Container.Run.
@@ -182,18 +182,18 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 			Expect(firstImage.Buildpacks[0].Layers).To(HaveKey("mri"))
 			Expect(firstImage.Buildpacks[1].Key).To(Equal("paketo-community/bundler"))
 			Expect(firstImage.Buildpacks[1].Layers).To(HaveKey("bundler"))
-			Expect(firstImage.Buildpacks[2].Key).To(Equal("paketo-community/bundle-install"))
+			Expect(firstImage.Buildpacks[2].Key).To(Equal(settings.Buildpack.ID))
 			Expect(firstImage.Buildpacks[2].Layers).To(HaveKey("gems"))
 
 			Expect(logs).To(ContainLines(
 				MatchRegexp(fmt.Sprintf(`%s \d+\.\d+\.\d+`, settings.Buildpack.Name)),
 				"  Executing build process",
-				"    Running 'bundle config path /layers/paketo-community_bundle-install/gems'",
+				MatchRegexp(fmt.Sprintf("    Running 'bundle config path /layers/%s/gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
 				"    Running 'bundle install'",
 				MatchRegexp(`      Completed in \d+\.?\d*`),
 				"",
 				"  Configuring environment",
-				`    BUNDLE_PATH -> "/layers/paketo-community_bundle-install/gems"`,
+				MatchRegexp(fmt.Sprintf(`    BUNDLE_PATH -> "/layers/%s/gems"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
 			))
 
 			firstContainer, err = docker.Container.Run.
@@ -225,10 +225,10 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 			Expect(secondImage.Buildpacks[0].Layers).To(HaveKey("mri"))
 			Expect(secondImage.Buildpacks[1].Key).To(Equal("paketo-community/bundler"))
 			Expect(secondImage.Buildpacks[1].Layers).To(HaveKey("bundler"))
-			Expect(secondImage.Buildpacks[2].Key).To(Equal("paketo-community/bundle-install"))
+			Expect(secondImage.Buildpacks[2].Key).To(Equal(settings.Buildpack.ID))
 			Expect(secondImage.Buildpacks[2].Layers).To(HaveKey("gems"))
 
-			Expect(logs.String()).NotTo(ContainSubstring("Reusing cached layer /layers/paketo-community_bundle-install/gems"))
+			Expect(logs.String()).NotTo(ContainSubstring(fmt.Sprintf("  Reusing cached layer /layers/%s/gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))))
 
 			secondContainer, err = docker.Container.Run.
 				WithCommand("bundle exec rackup").
