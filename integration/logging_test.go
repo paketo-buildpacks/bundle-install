@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/paketo-buildpacks/occam"
@@ -65,12 +66,12 @@ func testLogging(t *testing.T, context spec.G, it spec.S) {
 			Expect(logs).To(ContainLines(
 				MatchRegexp(fmt.Sprintf(`%s \d+\.\d+\.\d+`, settings.Buildpack.Name)),
 				"  Executing build process",
-				"    Running 'bundle config path /layers/paketo-community_bundle-install/gems'",
+				MatchRegexp(fmt.Sprintf("    Running 'bundle config path /layers/%s/gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
 				"    Running 'bundle install'",
 				MatchRegexp(`      Completed in \d+\.?\d*`),
 				"",
 				"  Configuring environment",
-				`    BUNDLE_PATH -> "/layers/paketo-community_bundle-install/gems"`,
+				MatchRegexp(fmt.Sprintf(`    BUNDLE_PATH -> "/layers/%s/gems"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
 			))
 		})
 	})
