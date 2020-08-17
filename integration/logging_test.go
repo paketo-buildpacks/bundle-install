@@ -63,7 +63,7 @@ func testLogging(t *testing.T, context spec.G, it spec.S) {
 			Expect(err).NotTo(HaveOccurred(), logs.String)
 
 			Expect(logs).To(ContainLines(
-				"Paketo Bundle Install Buildpack 1.2.3",
+				MatchRegexp(fmt.Sprintf(`%s \d+\.\d+\.\d+`, settings.Buildpack.Name)),
 				"  Executing build process",
 				"    Running 'bundle config path /layers/paketo-community_bundle-install/gems'",
 				"    Running 'bundle install'",
