@@ -104,7 +104,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 			))
 
 			firstContainer, err = docker.Container.Run.
-				WithCommand("bundle exec rackup").
+				WithCommand("bundle exec rackup -o 0.0.0.0").
 				WithEnv(map[string]string{"PORT": "9292"}).
 				Execute(firstImage.ID)
 			Expect(err).NotTo(HaveOccurred())
@@ -134,7 +134,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 			))
 
 			secondContainer, err = docker.Container.Run.
-				WithCommand("bundle exec rackup").
+				WithCommand("bundle exec rackup -o 0.0.0.0").
 				WithEnv(map[string]string{"PORT": "9292"}).
 				Execute(secondImage.ID)
 			Expect(err).NotTo(HaveOccurred())
@@ -197,7 +197,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 			))
 
 			firstContainer, err = docker.Container.Run.
-				WithCommand("bundle exec rackup").
+				WithCommand("bundle exec rackup -o 0.0.0.0").
 				WithEnv(map[string]string{"PORT": "9292"}).
 				Execute(firstImage.ID)
 			Expect(err).NotTo(HaveOccurred())
@@ -210,7 +210,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 			Expect(err).NotTo(HaveOccurred())
 
 			err = ioutil.WriteFile(filepath.Join(source, "Gemfile.lock"),
-				[]byte(strings.ReplaceAll(string(contents), "sinatra (1.4.4)", "sinatra (1.4.5)")), 0644)
+				[]byte(string(contents)+"\nbreak checksum"), 0644)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Second pack build
@@ -231,7 +231,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 			Expect(logs.String()).NotTo(ContainSubstring(fmt.Sprintf("  Reusing cached layer /layers/%s/gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))))
 
 			secondContainer, err = docker.Container.Run.
-				WithCommand("bundle exec rackup").
+				WithCommand("bundle exec rackup -o 0.0.0.0").
 				WithEnv(map[string]string{"PORT": "9292"}).
 				Execute(secondImage.ID)
 			Expect(err).NotTo(HaveOccurred())

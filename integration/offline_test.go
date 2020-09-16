@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/paketo-buildpacks/occam"
 	"github.com/sclevine/spec"
@@ -15,7 +16,7 @@ import (
 	. "github.com/paketo-buildpacks/occam/matchers"
 )
 
-func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
+func testOffline(t *testing.T, context spec.G, it spec.S) {
 	var (
 		Expect     = NewWithT(t).Expect
 		Eventually = NewWithT(t).Eventually
@@ -29,7 +30,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 		docker = occam.NewDocker()
 	})
 
-	context("when building a simple app", func() {
+	context("when building a simple app offline", func() {
 		var (
 			image     occam.Image
 			container occam.Container
@@ -53,16 +54,17 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 
 		it("creates a working OCI image", func() {
 			var err error
-			source, err = occam.Source(filepath.Join("testdata", "simple_app"))
+			source, err = occam.Source(filepath.Join("testdata", "offline_app"))
 			Expect(err).NotTo(HaveOccurred())
 
 			image, _, err = pack.WithVerbose().Build.
 				WithBuildpacks(
-					settings.Buildpacks.MRI.Online,
-					settings.Buildpacks.Bundler.Online,
-					settings.Buildpacks.BundleInstall.Online,
+					settings.Buildpacks.MRI.Offline,
+					settings.Buildpacks.Bundler.Offline,
+					settings.Buildpacks.BundleInstall.Offline,
 					settings.Buildpacks.BuildPlan.Online,
 				).
+				WithNetwork("none").
 				WithNoPull().
 				Execute(name, source)
 			Expect(err).NotTo(HaveOccurred())
@@ -73,7 +75,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 				Execute(image.ID)
 			Expect(err).NotTo(HaveOccurred())
 
-			Eventually(container).Should(BeAvailable())
+			Eventually(container, time.Second*30).Should(BeAvailable())
 
 			response, err := http.Get(fmt.Sprintf("http://localhost:%s", container.HostPort()))
 			Expect(err).NotTo(HaveOccurred())
@@ -84,43 +86,6 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			content, err := ioutil.ReadAll(response.Body)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(string(content)).To(ContainSubstring("Hello world!"))
-		})
-
-		context("the version of bundler in the Gemfile.lock is 1.17.x", func() {
-			it("creates a working OCI image", func() {
-				var err error
-				source, err = occam.Source(filepath.Join("testdata", "bundler_version_1_17"))
-				Expect(err).NotTo(HaveOccurred())
-
-				image, _, err = pack.WithVerbose().Build.
-					WithBuildpacks(
-						settings.Buildpacks.MRI.Online,
-						settings.Buildpacks.Bundler.Online,
-						settings.Buildpacks.BundleInstall.Online,
-						settings.Buildpacks.BuildPlan.Online,
-					).
-					WithNoPull().
-					Execute(name, source)
-				Expect(err).NotTo(HaveOccurred())
-
-				container, err = docker.Container.Run.
-					WithCommand("env && echo \"bundle -> $(which bundle)\" && cat $(which bundle) && bundle exec rackup").
-					WithEnv(map[string]string{"PORT": "9292"}).
-					Execute(image.ID)
-				Expect(err).NotTo(HaveOccurred())
-
-				Eventually(container).Should(BeAvailable())
-
-				response, err := http.Get(fmt.Sprintf("http://localhost:%s", container.HostPort()))
-				Expect(err).NotTo(HaveOccurred())
-				defer response.Body.Close()
-
-				Expect(response.StatusCode).To(Equal(http.StatusOK))
-
-				content, err := ioutil.ReadAll(response.Body)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(string(content)).To(ContainSubstring("Hello world!"))
-			})
 		})
 	})
 }

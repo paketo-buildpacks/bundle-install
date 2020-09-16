@@ -34,14 +34,13 @@ func Build(
 			return packit.BuildResult{}, err
 		}
 
-		sum := ""
-
+		var sum string
 		_, err = os.Stat(filepath.Join(context.WorkingDir, "Gemfile.lock"))
-		if err != nil && !os.IsNotExist(err) {
-			return packit.BuildResult{}, fmt.Errorf("failed to stat Gemfile.lock: %w", err)
-		}
-
-		if err == nil {
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return packit.BuildResult{}, fmt.Errorf("failed to stat Gemfile.lock: %w", err)
+			}
+		} else {
 			sum, err = calculator.Sum(filepath.Join(context.WorkingDir, "Gemfile.lock"))
 			if err != nil {
 				return packit.BuildResult{}, err

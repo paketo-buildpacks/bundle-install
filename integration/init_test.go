@@ -18,13 +18,16 @@ import (
 var settings struct {
 	Buildpacks struct {
 		BundleInstall struct {
-			Online string
+			Online  string
+			Offline string
 		}
 		Bundler struct {
-			Online string
+			Online  string
+			Offline string
 		}
 		MRI struct {
-			Online string
+			Online  string
+			Offline string
 		}
 		BuildPlan struct {
 			Online string
@@ -69,11 +72,27 @@ func TestIntegration(t *testing.T) {
 		Execute(root)
 	Expect(err).NotTo(HaveOccurred())
 
+	settings.Buildpacks.BundleInstall.Offline, err = buildpackStore.Get.
+		WithOfflineDependencies().
+		WithVersion("1.2.3").
+		Execute(root)
+	Expect(err).NotTo(HaveOccurred())
+
 	settings.Buildpacks.Bundler.Online, err = buildpackStore.Get.
 		Execute(settings.Config.Bundler)
 	Expect(err).NotTo(HaveOccurred())
 
+	settings.Buildpacks.Bundler.Offline, err = buildpackStore.Get.
+		WithOfflineDependencies().
+		Execute(settings.Config.Bundler)
+	Expect(err).NotTo(HaveOccurred())
+
 	settings.Buildpacks.MRI.Online, err = buildpackStore.Get.
+		Execute(settings.Config.MRI)
+	Expect(err).NotTo(HaveOccurred())
+
+	settings.Buildpacks.MRI.Offline, err = buildpackStore.Get.
+		WithOfflineDependencies().
 		Execute(settings.Config.MRI)
 	Expect(err).NotTo(HaveOccurred())
 
@@ -85,6 +104,7 @@ func TestIntegration(t *testing.T) {
 
 	suite := spec.New("Integration", spec.Report(report.Terminal{}), spec.Parallel())
 	suite("SimpleApp", testSimpleApp)
+	suite("OfflineApp", testOffline)
 	suite("Logging", testLogging)
 	suite("Layer Reuse", testLayerReuse)
 	suite.Run(t)

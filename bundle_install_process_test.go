@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -57,13 +58,30 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 			Expect(os.RemoveAll(workingDir)).To(Succeed())
 		})
 
-		it("runs the bundle install process", func() {
-			err := installProcess.Execute(workingDir, "some-dir")
-			Expect(err).NotTo(HaveOccurred())
+		context("when there is no vendor/cache directory present", func() {
+			it("runs the bundle install process", func() {
+				err := installProcess.Execute(workingDir, "some-dir")
+				Expect(err).NotTo(HaveOccurred())
 
-			Expect(executions).To(HaveLen(2))
-			Expect(executions[0].Args).To(Equal([]string{"config", "path", "some-dir"}))
-			Expect(executions[1].Args).To(Equal([]string{"install"}))
+				Expect(executions).To(HaveLen(2))
+				Expect(executions[0].Args).To(Equal([]string{"config", "path", "some-dir"}))
+				Expect(executions[1].Args).To(Equal([]string{"install"}))
+			})
+		})
+
+		context("when there is a vendor/cache directory present", func() {
+			it.Before(func() {
+				Expect(os.MkdirAll(filepath.Join(workingDir, "vendor", "cache"), os.ModePerm)).To(Succeed())
+			})
+
+			it("runs the bundle install process", func() {
+				err := installProcess.Execute(workingDir, "some-dir")
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(executions).To(HaveLen(2))
+				Expect(executions[0].Args).To(Equal([]string{"config", "path", "some-dir"}))
+				Expect(executions[1].Args).To(Equal([]string{"install", "--local"}))
+			})
 		})
 
 		context("failure cases", func() {
@@ -84,6 +102,21 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 					err := installProcess.Execute(workingDir, "some-dir")
 					Expect(err).To(MatchError(ContainSubstring("failed to execute bundle config")))
 					Expect(err).To(MatchError(ContainSubstring("bundle config failed")))
+				})
+			})
+
+			context("when the vendor/cache directory is un-statable", func() {
+				it.Before(func() {
+					Expect(os.MkdirAll(filepath.Join(workingDir, "vendor"), 0000)).To(Succeed())
+				})
+
+				it.After(func() {
+					Expect(os.MkdirAll(filepath.Join(workingDir, "vendor"), os.ModePerm)).To(Succeed())
+				})
+
+				it("runs the bundle install process", func() {
+					err := installProcess.Execute(workingDir, "some-dir")
+					Expect(err).To(MatchError(ContainSubstring("permission denied")))
 				})
 			})
 

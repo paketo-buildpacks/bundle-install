@@ -3,6 +3,8 @@ package bundleinstall
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/paketo-buildpacks/packit/pexec"
@@ -41,6 +43,15 @@ func (ip BundleInstallProcess) Execute(workingDir, gemLayersDir string) error {
 
 	buffer = bytes.NewBuffer(nil)
 	args = []string{"install"}
+
+	_, err = os.Stat(filepath.Join(workingDir, "vendor", "cache"))
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+	} else {
+		args = append(args, "--local")
+	}
 
 	ip.logger.Subprocess("Running 'bundle %s'", strings.Join(args, " "))
 	err = ip.executable.Execute(pexec.Execution{
