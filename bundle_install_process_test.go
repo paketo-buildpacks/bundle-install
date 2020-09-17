@@ -63,9 +63,10 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				err := installProcess.Execute(workingDir, "some-dir")
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(executions).To(HaveLen(2))
+				Expect(executions).To(HaveLen(3))
 				Expect(executions[0].Args).To(Equal([]string{"config", "path", "some-dir"}))
-				Expect(executions[1].Args).To(Equal([]string{"install"}))
+				Expect(executions[1].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
+				Expect(executions[2].Args).To(Equal([]string{"install"}))
 			})
 		})
 
@@ -78,9 +79,35 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				err := installProcess.Execute(workingDir, "some-dir")
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(executions).To(HaveLen(2))
+				Expect(executions).To(HaveLen(3))
 				Expect(executions[0].Args).To(Equal([]string{"config", "path", "some-dir"}))
-				Expect(executions[1].Args).To(Equal([]string{"install", "--local"}))
+				Expect(executions[1].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
+				Expect(executions[2].Args).To(Equal([]string{"install", "--local"}))
+			})
+		})
+
+		context("when the vendor/cache directory is in a non-default location", func() {
+			it.Before(func() {
+				Expect(os.MkdirAll(filepath.Join(workingDir, "other_dir", "other_cache"), os.ModePerm)).To(Succeed())
+				executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
+					executions = append(executions, execution)
+
+					if strings.Contains(strings.Join(execution.Args, " "), "config cache_path --parseable") {
+						fmt.Fprintf(execution.Stdout, "cache_path=other_dir/other_cache")
+					}
+
+					return nil
+				}
+			})
+
+			it("runs the bundle install process", func() {
+				err := installProcess.Execute(workingDir, "some-dir")
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(executions).To(HaveLen(3))
+				Expect(executions[0].Args).To(Equal([]string{"config", "path", "some-dir"}))
+				Expect(executions[1].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
+				Expect(executions[2].Args).To(Equal([]string{"install", "--local"}))
 			})
 		})
 
