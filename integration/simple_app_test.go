@@ -68,7 +68,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			Expect(err).NotTo(HaveOccurred())
 
 			container, err = docker.Container.Run.
-				WithCommand("env && echo \"bundle -> $(which bundle)\" && cat $(which bundle) && bundle exec rackup -o 0.0.0.0").
+				WithCommand("bundle exec rackup -o 0.0.0.0").
 				WithEnv(map[string]string{"PORT": "9292"}).
 				Execute(image.ID)
 			Expect(err).NotTo(HaveOccurred())
@@ -104,7 +104,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 				Expect(err).NotTo(HaveOccurred())
 
 				container, err = docker.Container.Run.
-					WithCommand("env && echo \"bundle -> $(which bundle)\" && cat $(which bundle) && bundle exec rackup").
+					WithCommand("bundle exec rackup -o 0.0.0.0").
 					WithEnv(map[string]string{"PORT": "9292"}).
 					Execute(image.ID)
 				Expect(err).NotTo(HaveOccurred())
