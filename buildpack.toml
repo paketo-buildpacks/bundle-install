@@ -1,8 +1,9 @@
 api = "0.2"
 
 [buildpack]
-  id = "paketo-community/bundle-install"
+  id = "paketo-buildpacks/bundle-install"
   name = "Paketo Bundle Install Buildpack"
+  homepage = "https://github.com/paketo-buildpacks/bundle-install"
 
 [metadata]
   include_files = ["bin/build", "bin/detect", "bin/run", "buildpack.toml"]

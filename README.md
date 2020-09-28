@@ -1,6 +1,6 @@
 # bundle-install
 
-## `gcr.io/paketo-community/bundle-install`
+## `gcr.io/paketo-buildpacks/bundle-install`
 
 A Cloud Native Buildpack to install gems from a Gemfile
 

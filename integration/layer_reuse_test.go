@@ -85,10 +85,6 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 
 			Expect(firstImage.Buildpacks).To(HaveLen(4))
 
-			Expect(firstImage.Buildpacks[0].Key).To(Equal("paketo-community/mri"))
-			Expect(firstImage.Buildpacks[0].Layers).To(HaveKey("mri"))
-			Expect(firstImage.Buildpacks[1].Key).To(Equal("paketo-community/bundler"))
-			Expect(firstImage.Buildpacks[1].Layers).To(HaveKey("bundler"))
 			Expect(firstImage.Buildpacks[2].Key).To(Equal(settings.Buildpack.ID))
 			Expect(firstImage.Buildpacks[2].Layers).To(HaveKey("gems"))
 
@@ -122,10 +118,6 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 
 			Expect(secondImage.Buildpacks).To(HaveLen(4))
 
-			Expect(secondImage.Buildpacks[0].Key).To(Equal("paketo-community/mri"))
-			Expect(secondImage.Buildpacks[0].Layers).To(HaveKey("mri"))
-			Expect(secondImage.Buildpacks[1].Key).To(Equal("paketo-community/bundler"))
-			Expect(secondImage.Buildpacks[1].Layers).To(HaveKey("bundler"))
 			Expect(secondImage.Buildpacks[2].Key).To(Equal(settings.Buildpack.ID))
 			Expect(secondImage.Buildpacks[2].Layers).To(HaveKey("gems"))
 
@@ -179,10 +171,6 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 
 			Expect(firstImage.Buildpacks).To(HaveLen(4))
 
-			Expect(firstImage.Buildpacks[0].Key).To(Equal("paketo-community/mri"))
-			Expect(firstImage.Buildpacks[0].Layers).To(HaveKey("mri"))
-			Expect(firstImage.Buildpacks[1].Key).To(Equal("paketo-community/bundler"))
-			Expect(firstImage.Buildpacks[1].Layers).To(HaveKey("bundler"))
 			Expect(firstImage.Buildpacks[2].Key).To(Equal(settings.Buildpack.ID))
 			Expect(firstImage.Buildpacks[2].Layers).To(HaveKey("gems"))
 
@@ -223,10 +211,6 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 
 			Expect(secondImage.Buildpacks).To(HaveLen(4))
 
-			Expect(secondImage.Buildpacks[0].Key).To(Equal("paketo-community/mri"))
-			Expect(secondImage.Buildpacks[0].Layers).To(HaveKey("mri"))
-			Expect(secondImage.Buildpacks[1].Key).To(Equal("paketo-community/bundler"))
-			Expect(secondImage.Buildpacks[1].Layers).To(HaveKey("bundler"))
 			Expect(secondImage.Buildpacks[2].Key).To(Equal(settings.Buildpack.ID))
 			Expect(secondImage.Buildpacks[2].Layers).To(HaveKey("gems"))
 

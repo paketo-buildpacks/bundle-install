@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	bundleinstall "github.com/paketo-buildpacks/bundle-install"
+	"github.com/paketo-buildpacks/bundle-install/fakes"
 	"github.com/paketo-buildpacks/packit/pexec"
-	bundleinstall "github.com/paketo-community/bundle-install"
-	"github.com/paketo-community/bundle-install/fakes"
 	"github.com/sclevine/spec"
 
 	. "github.com/onsi/gomega"

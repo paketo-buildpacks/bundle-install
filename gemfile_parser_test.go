@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	bundleinstall "github.com/paketo-community/bundle-install"
+	bundleinstall "github.com/paketo-buildpacks/bundle-install"
 	"github.com/sclevine/spec"
 
 	. "github.com/onsi/gomega"
