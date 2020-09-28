@@ -1,4 +1,4 @@
-module github.com/paketo-community/bundle-install
+module github.com/paketo-buildpacks/bundle-install
 
 go 1.14
 

@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
+	bundleinstall "github.com/paketo-buildpacks/bundle-install"
 	"github.com/paketo-buildpacks/packit"
-	bundleinstall "github.com/paketo-community/bundle-install"
 	"github.com/sclevine/spec"
 
 	. "github.com/onsi/gomega"
