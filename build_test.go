@@ -112,7 +112,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					},
 					Build:  false,
 					Launch: true,
-					Cache:  false,
+					Cache:  true,
 					Metadata: map[string]interface{}{
 						"built_at":  timeStamp.Format(time.RFC3339Nano),
 						"cache_sha": "",
@@ -120,8 +120,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 				},
 			},
 		}))
-
-		Expect(filepath.Join(layersDir, "gems")).To(BeADirectory())
 
 		Expect(buffer.String()).To(ContainSubstring("Some Buildpack some-version"))
 		Expect(buffer.String()).To(ContainSubstring("Executing build process"))
@@ -177,7 +175,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 							},
 							Build:  false,
 							Launch: true,
-							Cache:  false,
+							Cache:  true,
 							Metadata: map[string]interface{}{
 								"built_at":  timeStamp.Format(time.RFC3339Nano),
 								"cache_sha": "",
@@ -237,7 +235,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 							SharedEnv: packit.Environment{},
 							Build:     false,
 							Launch:    true,
-							Cache:     false,
+							Cache:     true,
 							Metadata: map[string]interface{}{
 								"built_at":  timeStamp.Format(time.RFC3339Nano),
 								"cache_sha": "some-calculator-sha",
@@ -258,41 +256,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 			it.After(func() {
 				Expect(os.Chmod(layersDir, os.ModePerm)).To(Succeed())
-			})
-
-			it("returns an error", func() {
-				_, err := build(packit.BuildContext{
-					WorkingDir: workingDir,
-					CNBPath:    cnbDir,
-					Stack:      "some-stack",
-					BuildpackInfo: packit.BuildpackInfo{
-						Name:    "Some Buildpack",
-						Version: "some-version",
-					},
-					Plan: packit.BuildpackPlan{
-						Entries: []packit.BuildpackPlanEntry{
-							{
-								Name: "gems",
-							},
-						},
-					},
-					Layers: packit.Layers{Path: layersDir},
-				})
-				Expect(err).To(MatchError(ContainSubstring("permission denied")))
-			})
-		})
-
-		context("when the layer directory cannot be removed", func() {
-			var layerDir string
-			it.Before(func() {
-				layerDir = filepath.Join(layersDir, bundleinstall.LayerNameGems)
-				Expect(os.MkdirAll(filepath.Join(layerDir, "baller"), os.ModePerm)).To(Succeed())
-				Expect(os.Chmod(layerDir, 0000)).To(Succeed())
-			})
-
-			it.After(func() {
-				Expect(os.Chmod(layerDir, os.ModePerm)).To(Succeed())
-				Expect(os.RemoveAll(layerDir)).To(Succeed())
 			})
 
 			it("returns an error", func() {
