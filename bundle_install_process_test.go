@@ -63,10 +63,11 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				err := installProcess.Execute(workingDir, "some-dir")
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(executions).To(HaveLen(3))
+				Expect(executions).To(HaveLen(4))
 				Expect(executions[0].Args).To(Equal([]string{"config", "path", "some-dir"}))
-				Expect(executions[1].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
-				Expect(executions[2].Args).To(Equal([]string{"install"}))
+				Expect(executions[1].Args).To(Equal([]string{"config", "clean", "true"}))
+				Expect(executions[2].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
+				Expect(executions[3].Args).To(Equal([]string{"install"}))
 			})
 		})
 
@@ -79,10 +80,11 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				err := installProcess.Execute(workingDir, "some-dir")
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(executions).To(HaveLen(3))
+				Expect(executions).To(HaveLen(4))
 				Expect(executions[0].Args).To(Equal([]string{"config", "path", "some-dir"}))
-				Expect(executions[1].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
-				Expect(executions[2].Args).To(Equal([]string{"install", "--local"}))
+				Expect(executions[1].Args).To(Equal([]string{"config", "clean", "true"}))
+				Expect(executions[2].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
+				Expect(executions[3].Args).To(Equal([]string{"install", "--local"}))
 			})
 		})
 
@@ -104,10 +106,11 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				err := installProcess.Execute(workingDir, "some-dir")
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(executions).To(HaveLen(3))
+				Expect(executions).To(HaveLen(4))
 				Expect(executions[0].Args).To(Equal([]string{"config", "path", "some-dir"}))
-				Expect(executions[1].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
-				Expect(executions[2].Args).To(Equal([]string{"install", "--local"}))
+				Expect(executions[1].Args).To(Equal([]string{"config", "clean", "true"}))
+				Expect(executions[2].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
+				Expect(executions[3].Args).To(Equal([]string{"install", "--local"}))
 			})
 		})
 

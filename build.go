@@ -29,7 +29,7 @@ func Build(
 	return func(context packit.BuildContext) (packit.BuildResult, error) {
 		logger.Title("%s %s", context.BuildpackInfo.Name, context.BuildpackInfo.Version)
 
-		gemsLayer, err := context.Layers.Get(LayerNameGems, packit.LaunchLayer)
+		gemsLayer, err := context.Layers.Get(LayerNameGems, packit.LaunchLayer, packit.CacheLayer)
 		if err != nil {
 			return packit.BuildResult{}, err
 		}
@@ -60,10 +60,6 @@ func Build(
 				},
 				Layers: []packit.Layer{gemsLayer},
 			}, nil
-		}
-
-		if err = gemsLayer.Reset(); err != nil {
-			return packit.BuildResult{}, err
 		}
 
 		logger.Process("Executing build process")

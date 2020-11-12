@@ -42,6 +42,20 @@ func (ip BundleInstallProcess) Execute(workingDir, gemLayersDir string) error {
 	}
 
 	buffer = bytes.NewBuffer(nil)
+	args = []string{"config", "clean", "true"}
+
+	ip.logger.Subprocess("Running 'bundle %s'", strings.Join(args, " "))
+	err = ip.executable.Execute(pexec.Execution{
+		Args:   args,
+		Stdout: buffer,
+		Stderr: buffer,
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to execute bundle config output:\n%s\nerror: %s", buffer.String(), err)
+	}
+
+	buffer = bytes.NewBuffer(nil)
 	args = []string{"config", "cache_path", "--parseable"}
 
 	ip.logger.Subprocess("Running 'bundle %s'", strings.Join(args, " "))
