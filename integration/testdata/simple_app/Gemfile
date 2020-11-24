@@ -2,4 +2,4 @@ source 'https://rubygems.org'
 
 ruby '~> 2.0'
 
-gem 'sinatra'
+gem 'sinatra', '~>2.1.0'
