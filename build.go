@@ -17,7 +17,7 @@ type InstallProcess interface {
 
 //go:generate faux --interface Calculator --output fakes/calculator.go
 type Calculator interface {
-	Sum(path string) (string, error)
+	Sum(paths ...string) (string, error)
 }
 
 func Build(
@@ -41,7 +41,7 @@ func Build(
 				return packit.BuildResult{}, fmt.Errorf("failed to stat Gemfile.lock: %w", err)
 			}
 		} else {
-			sum, err = calculator.Sum(filepath.Join(context.WorkingDir, "Gemfile.lock"))
+			sum, err = calculator.Sum(filepath.Join(context.WorkingDir, "Gemfile"), filepath.Join(context.WorkingDir, "Gemfile.lock"))
 			if err != nil {
 				return packit.BuildResult{}, err
 			}
