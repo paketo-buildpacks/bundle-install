@@ -1,6 +1,7 @@
 package bundleinstall_test
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -77,10 +78,9 @@ func testGemfileParser(t *testing.T, context spec.G, it spec.S) {
 				Expect(os.Remove(path)).To(Succeed())
 			})
 
-			it("returns an empty version", func() {
-				version, err := parser.ParseVersion(path)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(version).To(BeEmpty())
+			it("returns an ErrNotExist error", func() {
+				_, err := parser.ParseVersion(path)
+				Expect(errors.Is(err, os.ErrNotExist)).To(BeTrue())
 			})
 		})
 
