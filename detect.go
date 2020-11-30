@@ -1,7 +1,8 @@
 package bundleinstall
 
 import (
-	"fmt"
+	"errors"
+	"os"
 	"path/filepath"
 
 	"github.com/paketo-buildpacks/packit"
@@ -21,7 +22,10 @@ func Detect(gemfileParser VersionParser) packit.DetectFunc {
 	return func(context packit.DetectContext) (packit.DetectResult, error) {
 		mriVersion, err := gemfileParser.ParseVersion(filepath.Join(context.WorkingDir, "Gemfile"))
 		if err != nil {
-			return packit.DetectResult{}, fmt.Errorf("failed to parse Gemfile: %w", err)
+			if errors.Is(err, os.ErrNotExist) {
+				return packit.DetectResult{}, packit.Fail.WithMessage("Gemfile is not present")
+			}
+			return packit.DetectResult{}, err
 		}
 
 		return packit.DetectResult{

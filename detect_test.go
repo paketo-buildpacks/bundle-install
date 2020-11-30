@@ -2,6 +2,7 @@ package bundleinstall_test
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -100,6 +101,20 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 		})
 	})
 
+	context("when a Gemfile does not exist", func() {
+		it.Before(func() {
+			_, err := os.Stat("/no/gemfile")
+			gemfileParser.ParseVersionCall.Returns.Err = fmt.Errorf("failed to parse Gemfile: %w", err)
+		})
+
+		it("fails detection", func() {
+			_, err := detect(packit.DetectContext{
+				WorkingDir: workingDir,
+			})
+			Expect(err).To(MatchError(packit.Fail.WithMessage("Gemfile is not present")))
+		})
+	})
+
 	context("when the buildpack.yml parser fails", func() {
 		it.Before(func() {
 			gemfileParser.ParseVersionCall.Returns.Err = errors.New("some-error")
@@ -109,7 +124,7 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 			_, err := detect(packit.DetectContext{
 				WorkingDir: workingDir,
 			})
-			Expect(err).To(MatchError("failed to parse Gemfile: some-error"))
+			Expect(err).To(MatchError("some-error"))
 		})
 	})
 }
