@@ -25,6 +25,7 @@ func main() {
 			fs.NewChecksumCalculator(),
 			logEmitter,
 			chronos.DefaultClock,
+			bundleinstall.NewPlanEntryResolver(),
 		),
 	)
 }
