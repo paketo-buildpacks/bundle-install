@@ -33,6 +33,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 		installProcess *fakes.InstallProcess
 		calculator     *fakes.Calculator
+		entryResolver  *fakes.EntryResolver
 
 		build packit.BuildFunc
 	)
@@ -61,7 +62,16 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		calculator = &fakes.Calculator{}
 		calculator.SumCall.Returns.String = "some-calculator-sha"
 
-		build = bundleinstall.Build(installProcess, calculator, logEmitter, clock)
+		entryResolver = &fakes.EntryResolver{}
+		entryResolver.ResolveCall.Returns.BuildpackPlanEntry = packit.BuildpackPlanEntry{
+			Name: "gems",
+			Metadata: map[string]interface{}{
+				"launch": true,
+				"build":  true,
+			},
+		}
+
+		build = bundleinstall.Build(installProcess, calculator, logEmitter, clock, entryResolver)
 	})
 
 	it.After(func() {
@@ -83,6 +93,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 				Entries: []packit.BuildpackPlanEntry{
 					{
 						Name: "gems",
+						Metadata: map[string]interface{}{
+							"launch": true,
+							"build":  true,
+						},
 					},
 				},
 			},
@@ -98,6 +112,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 				Entries: []packit.BuildpackPlanEntry{
 					{
 						Name: "gems",
+						Metadata: map[string]interface{}{
+							"launch": true,
+							"build":  true,
+						},
 					},
 				},
 			},
@@ -110,7 +128,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					SharedEnv: packit.Environment{
 						"BUNDLE_PATH.default": filepath.Join(layersDir, "gems"),
 					},
-					Build:  false,
+					Build:  true,
 					Launch: true,
 					Cache:  true,
 					Metadata: map[string]interface{}{
@@ -131,11 +149,20 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			err := ioutil.WriteFile(filepath.Join(layersDir, fmt.Sprintf("%s.toml", bundleinstall.LayerNameGems)), []byte(fmt.Sprintf(`[metadata]
 			cache_sha = "some-calculator-sha"
 			built_at = "%s"
-			`, timeStamp.Format(time.RFC3339Nano))), 0644)
+			`, timeStamp.Format(time.RFC3339Nano))), 0600)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
 		context("when working dir has no Gemfile.lock", func() {
+			it.Before(func() {
+				entryResolver.ResolveCall.Returns.BuildpackPlanEntry = packit.BuildpackPlanEntry{
+					Name: "gems",
+					Metadata: map[string]interface{}{
+						"launch": true,
+					},
+				}
+			})
+
 			it("runs the install process", func() {
 				result, err := build(packit.BuildContext{
 					WorkingDir: workingDir,
@@ -149,6 +176,9 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						Entries: []packit.BuildpackPlanEntry{
 							{
 								Name: "gems",
+								Metadata: map[string]interface{}{
+									"launch": true,
+								},
 							},
 						},
 					},
@@ -161,6 +191,9 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						Entries: []packit.BuildpackPlanEntry{
 							{
 								Name: "gems",
+								Metadata: map[string]interface{}{
+									"launch": true,
+								},
 							},
 						},
 					},
@@ -175,7 +208,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 							},
 							Build:  false,
 							Launch: true,
-							Cache:  true,
+							Cache:  false,
 							Metadata: map[string]interface{}{
 								"built_at":  timeStamp.Format(time.RFC3339Nano),
 								"cache_sha": "",
@@ -189,20 +222,26 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 		context("when working dir has Gemfile.lock", func() {
 			it.Before(func() {
-				err := ioutil.WriteFile(filepath.Join(workingDir, "Gemfile"), nil, 0644)
+				err := ioutil.WriteFile(filepath.Join(workingDir, "Gemfile"), nil, 0600)
 				Expect(err).NotTo(HaveOccurred())
-				err = ioutil.WriteFile(filepath.Join(workingDir, "Gemfile.lock"), nil, 0644)
+
+				err = ioutil.WriteFile(filepath.Join(workingDir, "Gemfile.lock"), nil, 0600)
 				Expect(err).NotTo(HaveOccurred())
 			})
 
 			it.After(func() {
 				err := os.RemoveAll(filepath.Join(workingDir, "Gemfile"))
 				Expect(err).NotTo(HaveOccurred())
+
 				err = os.RemoveAll(filepath.Join(workingDir, "Gemfile.lock"))
 				Expect(err).NotTo(HaveOccurred())
 			})
 
 			context("when checksum matches", func() {
+				it.Before(func() {
+					entryResolver.ResolveCall.Returns.BuildpackPlanEntry = packit.BuildpackPlanEntry{Name: "gems"}
+				})
+
 				it("does not run the install process", func() {
 					result, err := build(packit.BuildContext{
 						WorkingDir: workingDir,
@@ -214,9 +253,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						},
 						Plan: packit.BuildpackPlan{
 							Entries: []packit.BuildpackPlanEntry{
-								{
-									Name: "gems",
-								},
+								{Name: "gems"},
 							},
 						},
 						Layers: packit.Layers{Path: layersDir},
@@ -230,9 +267,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					Expect(result).To(Equal(packit.BuildResult{
 						Plan: packit.BuildpackPlan{
 							Entries: []packit.BuildpackPlanEntry{
-								{
-									Name: "gems",
-								},
+								{Name: "gems"},
 							},
 						},
 						Layers: []packit.Layer{
@@ -243,8 +278,8 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 								BuildEnv:  packit.Environment{},
 								SharedEnv: packit.Environment{},
 								Build:     false,
-								Launch:    true,
-								Cache:     true,
+								Launch:    false,
+								Cache:     false,
 								Metadata: map[string]interface{}{
 									"built_at":  timeStamp.Format(time.RFC3339Nano),
 									"cache_sha": "some-calculator-sha",
@@ -260,8 +295,15 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					err := ioutil.WriteFile(filepath.Join(layersDir, fmt.Sprintf("%s.toml", bundleinstall.LayerNameGems)), []byte(fmt.Sprintf(`[metadata]
 					cache_sha = "some-sha-that-does-not-match"
 					built_at = "%s"
-					`, timeStamp.Format(time.RFC3339Nano))), 0644)
+					`, timeStamp.Format(time.RFC3339Nano))), 0600)
 					Expect(err).NotTo(HaveOccurred())
+
+					entryResolver.ResolveCall.Returns.BuildpackPlanEntry = packit.BuildpackPlanEntry{
+						Name: "gems",
+						Metadata: map[string]interface{}{
+							"build": true,
+						},
+					}
 				})
 
 				it("does the install process", func() {
@@ -277,6 +319,9 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 							Entries: []packit.BuildpackPlanEntry{
 								{
 									Name: "gems",
+									Metadata: map[string]interface{}{
+										"build": true,
+									},
 								},
 							},
 						},
@@ -292,6 +337,9 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 							Entries: []packit.BuildpackPlanEntry{
 								{
 									Name: "gems",
+									Metadata: map[string]interface{}{
+										"build": true,
+									},
 								},
 							},
 						},
@@ -304,8 +352,8 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 								SharedEnv: packit.Environment{
 									"BUNDLE_PATH.default": filepath.Join(layersDir, "gems"),
 								},
-								Build:  false,
-								Launch: true,
+								Build:  true,
+								Launch: false,
 								Cache:  true,
 								Metadata: map[string]interface{}{
 									"built_at":  timeStamp.Format(time.RFC3339Nano),

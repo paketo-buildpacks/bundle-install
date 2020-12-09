@@ -14,5 +14,6 @@ func TestUnitBundleInstall(t *testing.T) {
 	suite("Detect", testDetect)
 	suite("GemfileParser", testGemfileParser)
 	suite("LogEmitter", testLogEmitter)
+	suite("PlanEntryResolver", testPlanEntryResolver)
 	suite.Run(t)
 }
