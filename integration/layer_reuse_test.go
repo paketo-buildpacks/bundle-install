@@ -104,6 +104,8 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 			firstContainer, err = docker.Container.Run.
 				WithCommand("bundle exec rackup -o 0.0.0.0").
 				WithEnv(map[string]string{"PORT": "9292"}).
+				WithPublish("9292").
+				WithPublishAll().
 				Execute(firstImage.ID)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -130,6 +132,8 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 			secondContainer, err = docker.Container.Run.
 				WithCommand("bundle exec rackup -o 0.0.0.0").
 				WithEnv(map[string]string{"PORT": "9292"}).
+				WithPublish("9292").
+				WithPublishAll().
 				Execute(secondImage.ID)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -192,6 +196,8 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 				firstContainer, err = docker.Container.Run.
 					WithCommand("bundle exec rackup -o 0.0.0.0").
 					WithEnv(map[string]string{"PORT": "9292"}).
+					WithPublish("9292").
+					WithPublishAll().
 					Execute(firstImage.ID)
 				Expect(err).NotTo(HaveOccurred())
 
@@ -222,6 +228,8 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 				secondContainer, err = docker.Container.Run.
 					WithCommand("bundle exec rackup -o 0.0.0.0").
 					WithEnv(map[string]string{"PORT": "9292"}).
+					WithPublish("9292").
+					WithPublishAll().
 					Execute(secondImage.ID)
 				Expect(err).NotTo(HaveOccurred())
 
@@ -283,6 +291,8 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 				firstContainer, err = docker.Container.Run.
 					WithCommand("bundle exec rackup -o 0.0.0.0").
 					WithEnv(map[string]string{"PORT": "9292"}).
+					WithPublish("9292").
+					WithPublishAll().
 					Execute(firstImage.ID)
 				Expect(err).NotTo(HaveOccurred())
 
@@ -317,6 +327,8 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 				secondContainer, err = docker.Container.Run.
 					WithCommand("bundle exec rackup -o 0.0.0.0").
 					WithEnv(map[string]string{"PORT": "9292"}).
+					WithPublish("9292").
+					WithPublishAll().
 					Execute(secondImage.ID)
 				Expect(err).NotTo(HaveOccurred())
 
