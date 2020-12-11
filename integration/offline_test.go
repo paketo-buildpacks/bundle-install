@@ -69,12 +69,14 @@ func testOffline(t *testing.T, context spec.G, it spec.S) {
 			container, err = docker.Container.Run.
 				WithCommand("bundle exec rackup -o 0.0.0.0").
 				WithEnv(map[string]string{"PORT": "9292"}).
+				WithPublish("9292").
+				WithPublishAll().
 				Execute(image.ID)
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(container, time.Second*30).Should(BeAvailable())
 
-			response, err := http.Get(fmt.Sprintf("http://localhost:%s", container.HostPort()))
+			response, err := http.Get(fmt.Sprintf("http://localhost:%s", container.HostPort("9292")))
 			Expect(err).NotTo(HaveOccurred())
 			defer response.Body.Close()
 
@@ -107,12 +109,14 @@ func testOffline(t *testing.T, context spec.G, it spec.S) {
 			container, err = docker.Container.Run.
 				WithCommand("bundle exec rackup -o 0.0.0.0").
 				WithEnv(map[string]string{"PORT": "9292"}).
+				WithPublish("9292").
+				WithPublishAll().
 				Execute(image.ID)
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(container, time.Second*30).Should(BeAvailable())
 
-			response, err := http.Get(fmt.Sprintf("http://localhost:%s", container.HostPort()))
+			response, err := http.Get(fmt.Sprintf("http://localhost:%s", container.HostPort("9292")))
 			Expect(err).NotTo(HaveOccurred())
 			defer response.Body.Close()
 
