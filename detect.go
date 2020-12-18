@@ -14,8 +14,9 @@ type VersionParser interface {
 }
 
 type BuildPlanMetadata struct {
-	Build  bool `toml:"build"`
-	Launch bool `toml:"launch"`
+	Version string `toml:"version"`
+	Build   bool   `toml:"build"`
+	Launch  bool   `toml:"launch"`
 }
 
 func Detect(gemfileParser VersionParser) packit.DetectFunc {
@@ -41,10 +42,10 @@ func Detect(gemfileParser VersionParser) packit.DetectFunc {
 						},
 					},
 					{
-						Name:    MRIDependency,
-						Version: mriVersion,
+						Name: MRIDependency,
 						Metadata: BuildPlanMetadata{
-							Build: true,
+							Version: mriVersion,
+							Build:   true,
 						},
 					},
 				},

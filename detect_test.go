@@ -90,10 +90,10 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 						},
 					},
 					{
-						Name:    "mri",
-						Version: "2.6.x",
+						Name: "mri",
 						Metadata: bundleinstall.BuildPlanMetadata{
-							Build: true,
+							Version: "2.6.x",
+							Build:   true,
 						},
 					},
 				},
