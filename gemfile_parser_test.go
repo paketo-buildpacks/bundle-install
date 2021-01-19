@@ -44,7 +44,11 @@ func testGemfileParser(t *testing.T, context spec.G, it spec.S) {
 		context("when given different types of versions", func() {
 			it("parses the versions correctly", func() {
 				versions := []string{
+					`"2"`,
+					`"~> 2"`,
+					`"2.6"`,
 					`"2.6.0"`,
+					`"~> 2.6"`,
 					`"~> 2.6.0"`,
 					`"~> 2.7.0"`,
 					`'~> 2.7.0'`,

@@ -21,15 +21,14 @@ func (p GemfileParser) ParseVersion(path string) (string, error) {
 
 	quotes := `["']`
 	versionOperators := `~>|<|>|<=|>=|=`
-	versionNumber := `\d+\.\d+\.\d+`
+	versionNumber := `\d+(\.\d+)?(\.\d+)?`
 	expression := fmt.Sprintf(`ruby %s((%s)?\s*%s)%s`, quotes, versionOperators, versionNumber, quotes)
 	re := regexp.MustCompile(expression)
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		matches := re.FindStringSubmatch(scanner.Text())
-
-		if len(matches) == 3 {
+		if len(matches) >= 3 {
 			return matches[1], nil
 		}
 	}
