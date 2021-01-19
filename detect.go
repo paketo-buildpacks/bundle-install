@@ -14,9 +14,10 @@ type VersionParser interface {
 }
 
 type BuildPlanMetadata struct {
-	Version string `toml:"version"`
-	Build   bool   `toml:"build"`
-	Launch  bool   `toml:"launch"`
+	Version       string `toml:"version"`
+	VersionSource string `toml:"version-source,omitempty"`
+	Build         bool   `toml:"build"`
+	Launch        bool   `toml:"launch"`
 }
 
 func Detect(gemfileParser VersionParser) packit.DetectFunc {
@@ -27,6 +28,10 @@ func Detect(gemfileParser VersionParser) packit.DetectFunc {
 				return packit.DetectResult{}, packit.Fail.WithMessage("Gemfile is not present")
 			}
 			return packit.DetectResult{}, err
+		}
+		var versionSource string
+		if mriVersion != "" {
+			versionSource = "Gemfile"
 		}
 
 		return packit.DetectResult{
@@ -44,8 +49,9 @@ func Detect(gemfileParser VersionParser) packit.DetectFunc {
 					{
 						Name: MRIDependency,
 						Metadata: BuildPlanMetadata{
-							Version: mriVersion,
-							Build:   true,
+							Version:       mriVersion,
+							VersionSource: versionSource,
+							Build:         true,
 						},
 					},
 				},

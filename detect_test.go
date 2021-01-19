@@ -92,8 +92,9 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 					{
 						Name: "mri",
 						Metadata: bundleinstall.BuildPlanMetadata{
-							Version: "2.6.x",
-							Build:   true,
+							Version:       "2.6.x",
+							VersionSource: "Gemfile",
+							Build:         true,
 						},
 					},
 				},
