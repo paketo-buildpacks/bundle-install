@@ -26,12 +26,18 @@ type EntryResolver interface {
 	MergeLayerTypes(string, []packit.BuildpackPlanEntry) (launch, build bool)
 }
 
+//go:generate faux --interface VersionResolver --output fakes/version_resolver.go
+type VersionResolver interface {
+	Lookup() (version string, err error)
+}
+
 func Build(
 	installProcess InstallProcess,
 	calculator Calculator,
 	logger LogEmitter,
 	clock chronos.Clock,
 	entries EntryResolver,
+	versionResolver VersionResolver,
 ) packit.BuildFunc {
 	return func(context packit.BuildContext) (packit.BuildResult, error) {
 		logger.Title("%s %s", context.BuildpackInfo.Name, context.BuildpackInfo.Version)
@@ -42,6 +48,13 @@ func Build(
 		if err != nil {
 			return packit.BuildResult{}, err
 		}
+
+		rubyVersion, err := versionResolver.Lookup()
+		if err != nil {
+			panic(err)
+		}
+		cachedRubyVersion, ok := gemsLayer.Metadata["ruby_version"].(string)
+		rubyVersionMatch := ok && cachedRubyVersion == rubyVersion
 
 		var sum string
 		_, err = os.Stat(filepath.Join(context.WorkingDir, "Gemfile.lock"))
@@ -57,7 +70,9 @@ func Build(
 		}
 
 		cachedSHA, ok := gemsLayer.Metadata["cache_sha"].(string)
-		if ok && cachedSHA != "" && cachedSHA == sum {
+		cacheMatch := ok && cachedSHA == sum
+
+		if cacheMatch && rubyVersionMatch {
 			logger.Process("Reusing cached layer %s", gemsLayer.Path)
 			logger.Break()
 
@@ -84,8 +99,9 @@ func Build(
 		gemsLayer.Cache = gemsLayer.Build
 
 		gemsLayer.Metadata = map[string]interface{}{
-			"built_at":  clock.Now().Format(time.RFC3339Nano),
-			"cache_sha": sum,
+			"built_at":     clock.Now().Format(time.RFC3339Nano),
+			"cache_sha":    sum,
+			"ruby_version": rubyVersion,
 		}
 
 		gemsLayer.SharedEnv.Default("BUNDLE_PATH", gemsLayer.Path)
