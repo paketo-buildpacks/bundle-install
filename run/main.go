@@ -27,6 +27,9 @@ func main() {
 			logEmitter,
 			chronos.DefaultClock,
 			draft.NewPlanner(),
+			bundleinstall.NewRubyVersionResolver(
+				pexec.NewExecutable("ruby"),
+			),
 		),
 	)
 }
