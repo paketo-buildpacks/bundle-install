@@ -22,7 +22,8 @@ type Calculator interface {
 
 //go:generate faux --interface EntryResolver --output fakes/entry_resolver.go
 type EntryResolver interface {
-	Resolve([]packit.BuildpackPlanEntry) packit.BuildpackPlanEntry
+	Resolve(string, []packit.BuildpackPlanEntry, []interface{}) (packit.BuildpackPlanEntry, []packit.BuildpackPlanEntry)
+	MergeLayerTypes(string, []packit.BuildpackPlanEntry) (launch, build bool)
 }
 
 func Build(
@@ -35,7 +36,7 @@ func Build(
 	return func(context packit.BuildContext) (packit.BuildResult, error) {
 		logger.Title("%s %s", context.BuildpackInfo.Name, context.BuildpackInfo.Version)
 
-		entry := entries.Resolve(context.Plan.Entries)
+		entry, _ := entries.Resolve("gems", context.Plan.Entries, []interface{}{""})
 
 		gemsLayer, err := context.Layers.Get(LayerNameGems)
 		if err != nil {
@@ -79,9 +80,9 @@ func Build(
 		logger.Action("Completed in %s", duration.Round(time.Millisecond))
 		logger.Break()
 
-		gemsLayer.Launch = entry.Metadata["launch"] == true
-		gemsLayer.Build = entry.Metadata["build"] == true
-		gemsLayer.Cache = entry.Metadata["build"] == true
+		gemsLayer.Launch, gemsLayer.Build = entries.MergeLayerTypes("gems", context.Plan.Entries)
+		gemsLayer.Cache = gemsLayer.Build
+
 		gemsLayer.Metadata = map[string]interface{}{
 			"built_at":  clock.Now().Format(time.RFC3339Nano),
 			"cache_sha": sum,

@@ -71,6 +71,9 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			},
 		}
 
+		entryResolver.MergeLayerTypesCall.Returns.Launch = true
+		entryResolver.MergeLayerTypesCall.Returns.Build = true
+
 		build = bundleinstall.Build(installProcess, calculator, logEmitter, clock, entryResolver)
 	})
 
@@ -161,6 +164,9 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						"launch": true,
 					},
 				}
+
+				entryResolver.MergeLayerTypesCall.Returns.Launch = true
+				entryResolver.MergeLayerTypesCall.Returns.Build = false
 			})
 
 			it("runs the install process", func() {
@@ -304,6 +310,9 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 							"build": true,
 						},
 					}
+
+					entryResolver.MergeLayerTypesCall.Returns.Launch = false
+					entryResolver.MergeLayerTypesCall.Returns.Build = true
 				})
 
 				it("does the install process", func() {
