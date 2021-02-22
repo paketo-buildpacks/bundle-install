@@ -36,7 +36,7 @@ func Build(
 	return func(context packit.BuildContext) (packit.BuildResult, error) {
 		logger.Title("%s %s", context.BuildpackInfo.Name, context.BuildpackInfo.Version)
 
-		entry, _ := entries.Resolve("gems", context.Plan.Entries, []interface{}{""})
+		entry, _ := entries.Resolve("gems", context.Plan.Entries, []interface{}{})
 
 		gemsLayer, err := context.Layers.Get(LayerNameGems)
 		if err != nil {
