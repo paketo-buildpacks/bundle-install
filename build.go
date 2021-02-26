@@ -29,6 +29,7 @@ type EntryResolver interface {
 //go:generate faux --interface VersionResolver --output fakes/version_resolver.go
 type VersionResolver interface {
 	Lookup() (version string, err error)
+	CompareMajorMinor(string, string) (bool, error)
 }
 
 func Build(
@@ -51,10 +52,20 @@ func Build(
 
 		rubyVersion, err := versionResolver.Lookup()
 		if err != nil {
-			panic(err)
+			return packit.BuildResult{}, err
 		}
-		cachedRubyVersion, ok := gemsLayer.Metadata["ruby_version"].(string)
-		rubyVersionMatch := ok && cachedRubyVersion == rubyVersion
+
+		cachedRubyVersion, cachedVersionExists := gemsLayer.Metadata["ruby_version"].(string)
+		// If there is no cached ruby version, then the match is true
+		rubyVersionMatch := true
+
+		if cachedVersionExists {
+			// rubyVersionMatch will be true if at least the major and minor versions match
+			rubyVersionMatch, err = versionResolver.CompareMajorMinor(cachedRubyVersion, rubyVersion)
+			if err != nil {
+				return packit.BuildResult{}, err
+			}
+		}
 
 		var sum string
 		_, err = os.Stat(filepath.Join(context.WorkingDir, "Gemfile.lock"))
