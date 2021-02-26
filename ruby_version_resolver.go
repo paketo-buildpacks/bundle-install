@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/Masterminds/semver"
 	"github.com/paketo-buildpacks/packit/pexec"
 )
 
@@ -37,4 +38,23 @@ func (r RubyVersionResolver) Lookup() (string, error) {
 
 	// return just the numeric version part of the `ruby --version` output
 	return versions[1], nil
+}
+
+func (r RubyVersionResolver) CompareMajorMinor(cachedVersion, newVersion string) (bool, error) {
+	cachedSemverVersion, err := semver.NewVersion(cachedVersion)
+	if err != nil {
+		return false, err
+	}
+
+	majorMinorConstraint, err := semver.NewConstraint(fmt.Sprintf("%d.%d.*", cachedSemverVersion.Major(), cachedSemverVersion.Minor()))
+	if err != nil {
+		return false, err
+	}
+
+	newSemverVersion, err := semver.NewVersion(newVersion)
+	if err != nil {
+		return false, err
+	}
+
+	return majorMinorConstraint.Check(newSemverVersion), nil
 }
