@@ -136,7 +136,8 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					LaunchEnv: packit.Environment{},
 					BuildEnv:  packit.Environment{},
 					SharedEnv: packit.Environment{
-						"BUNDLE_PATH.default": filepath.Join(layersDir, "gems"),
+						"BUNDLE_PATH.default":    filepath.Join(layersDir, "gems"),
+						"BUNDLE_WITHOUT.default": "development:test",
 					},
 					Build:  true,
 					Launch: true,
@@ -219,7 +220,8 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 							LaunchEnv: packit.Environment{},
 							BuildEnv:  packit.Environment{},
 							SharedEnv: packit.Environment{
-								"BUNDLE_PATH.default": filepath.Join(layersDir, "gems"),
+								"BUNDLE_PATH.default":    filepath.Join(layersDir, "gems"),
+								"BUNDLE_WITHOUT.default": "development:test",
 							},
 							Build:  false,
 							Launch: true,
@@ -379,7 +381,8 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 								LaunchEnv: packit.Environment{},
 								BuildEnv:  packit.Environment{},
 								SharedEnv: packit.Environment{
-									"BUNDLE_PATH.default": filepath.Join(layersDir, "gems"),
+									"BUNDLE_PATH.default":    filepath.Join(layersDir, "gems"),
+									"BUNDLE_WITHOUT.default": "development:test",
 								},
 								Build:  true,
 								Launch: false,
@@ -457,7 +460,8 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 									LaunchEnv: packit.Environment{},
 									BuildEnv:  packit.Environment{},
 									SharedEnv: packit.Environment{
-										"BUNDLE_PATH.default": filepath.Join(layersDir, "gems"),
+										"BUNDLE_PATH.default":    filepath.Join(layersDir, "gems"),
+										"BUNDLE_WITHOUT.default": "development:test",
 									},
 									Build:  false,
 									Launch: false,

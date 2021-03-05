@@ -67,13 +67,16 @@ func testLogging(t *testing.T, context spec.G, it spec.S) {
 				MatchRegexp(fmt.Sprintf(`%s \d+\.\d+\.\d+`, settings.Buildpack.Name)),
 				"  Executing build process",
 				MatchRegexp(fmt.Sprintf("    Running 'bundle config path /layers/%s/gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+				"    Running 'bundle config without development:test'",
 				"    Running 'bundle config clean true'",
 				"    Running 'bundle config cache_path --parseable'",
 				"    Running 'bundle install'",
 				MatchRegexp(`      Completed in \d+\.?\d*`),
 				"",
 				"  Configuring environment",
-				MatchRegexp(fmt.Sprintf(`    BUNDLE_PATH -> "/layers/%s/gems"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+				MatchRegexp(fmt.Sprintf(`    BUNDLE_PATH    -> "/layers/%s/gems"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+				`    BUNDLE_WITHOUT -> "development:test"`,
+				"",
 			))
 		})
 	})

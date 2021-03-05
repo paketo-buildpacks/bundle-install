@@ -116,6 +116,7 @@ func Build(
 		}
 
 		gemsLayer.SharedEnv.Default("BUNDLE_PATH", gemsLayer.Path)
+		gemsLayer.SharedEnv.Default("BUNDLE_WITHOUT", "development:test")
 		logger.Environment(gemsLayer.SharedEnv)
 
 		return packit.BuildResult{
