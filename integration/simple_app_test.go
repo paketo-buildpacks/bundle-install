@@ -1,9 +1,6 @@
 package integration_test
 
 import (
-	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -76,16 +73,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(container).Should(BeAvailable())
-
-			response, err := http.Get(fmt.Sprintf("http://localhost:%s", container.HostPort("9292")))
-			Expect(err).NotTo(HaveOccurred())
-			defer response.Body.Close()
-
-			Expect(response.StatusCode).To(Equal(http.StatusOK))
-
-			content, err := ioutil.ReadAll(response.Body)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(string(content)).To(ContainSubstring("Hello world!"))
+			Eventually(container).Should(Serve(ContainSubstring("Hello world!")).OnPort(9292))
 		})
 
 		context("the version of bundler in the Gemfile.lock is 1.17.x", func() {
@@ -115,6 +103,41 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 
 				Eventually(container).Should(BeAvailable())
 				Eventually(container).Should(Serve(ContainSubstring("Hello world!")).OnPort(9292))
+			})
+		})
+
+		context("when the Gemfile contains development and test dependencies", func() {
+			it("does not install those dependencies", func() {
+				var err error
+				source, err = occam.Source(filepath.Join("testdata", "simple_app"))
+				Expect(err).NotTo(HaveOccurred())
+
+				image, _, err = pack.WithVerbose().Build.
+					WithBuildpacks(
+						settings.Buildpacks.MRI.Online,
+						settings.Buildpacks.Bundler.Online,
+						settings.Buildpacks.BundleInstall.Online,
+						settings.Buildpacks.BuildPlan.Online,
+					).
+					WithPullPolicy("never").
+					Execute(name, source)
+				Expect(err).NotTo(HaveOccurred())
+
+				container, err = docker.Container.Run.
+					WithCommand("bundle list && bundle exec rackup -o 0.0.0.0").
+					WithEnv(map[string]string{"PORT": "9292"}).
+					WithPublish("9292").
+					WithPublishAll().
+					Execute(image.ID)
+				Expect(err).NotTo(HaveOccurred())
+
+				Eventually(container).Should(BeAvailable())
+
+				logs, err := docker.Container.Logs.Execute(container.ID)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(logs.String()).To(ContainSubstring("sinatra"))
+				Expect(logs.String()).NotTo(ContainSubstring("rspec"))
+				Expect(logs.String()).NotTo(ContainSubstring("pry"))
 			})
 		})
 	})

@@ -63,11 +63,12 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				err := installProcess.Execute(workingDir, "some-dir")
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(executions).To(HaveLen(4))
+				Expect(executions).To(HaveLen(5))
 				Expect(executions[0].Args).To(Equal([]string{"config", "path", "some-dir"}))
-				Expect(executions[1].Args).To(Equal([]string{"config", "clean", "true"}))
-				Expect(executions[2].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
-				Expect(executions[3].Args).To(Equal([]string{"install"}))
+				Expect(executions[1].Args).To(Equal([]string{"config", "without", "development:test"}))
+				Expect(executions[2].Args).To(Equal([]string{"config", "clean", "true"}))
+				Expect(executions[3].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
+				Expect(executions[4].Args).To(Equal([]string{"install"}))
 			})
 		})
 
@@ -80,11 +81,12 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				err := installProcess.Execute(workingDir, "some-dir")
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(executions).To(HaveLen(4))
+				Expect(executions).To(HaveLen(5))
 				Expect(executions[0].Args).To(Equal([]string{"config", "path", "some-dir"}))
-				Expect(executions[1].Args).To(Equal([]string{"config", "clean", "true"}))
-				Expect(executions[2].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
-				Expect(executions[3].Args).To(Equal([]string{"install", "--local"}))
+				Expect(executions[1].Args).To(Equal([]string{"config", "without", "development:test"}))
+				Expect(executions[2].Args).To(Equal([]string{"config", "clean", "true"}))
+				Expect(executions[3].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
+				Expect(executions[4].Args).To(Equal([]string{"install", "--local"}))
 			})
 		})
 
@@ -106,32 +108,76 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				err := installProcess.Execute(workingDir, "some-dir")
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(executions).To(HaveLen(4))
+				Expect(executions).To(HaveLen(5))
 				Expect(executions[0].Args).To(Equal([]string{"config", "path", "some-dir"}))
-				Expect(executions[1].Args).To(Equal([]string{"config", "clean", "true"}))
-				Expect(executions[2].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
-				Expect(executions[3].Args).To(Equal([]string{"install", "--local"}))
+				Expect(executions[1].Args).To(Equal([]string{"config", "without", "development:test"}))
+				Expect(executions[2].Args).To(Equal([]string{"config", "clean", "true"}))
+				Expect(executions[3].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
+				Expect(executions[4].Args).To(Equal([]string{"install", "--local"}))
 			})
 		})
 
 		context("failure cases", func() {
-			context("when bundle config fails", func() {
+			context("when bundle config path fails", func() {
 				it.Before(func() {
 					executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
-						if strings.Contains(strings.Join(execution.Args, " "), "config") {
+						if strings.Contains(strings.Join(execution.Args, " "), "config path") {
 							fmt.Fprint(execution.Stdout, "stdout output")
 							fmt.Fprint(execution.Stderr, "stderr output")
 
-							return errors.New("bundle config failed")
+							return errors.New("bundle config path failed")
 						}
 
 						return nil
 					}
 				})
+
 				it("prints the execution output and returns an error", func() {
 					err := installProcess.Execute(workingDir, "some-dir")
 					Expect(err).To(MatchError(ContainSubstring("failed to execute bundle config")))
-					Expect(err).To(MatchError(ContainSubstring("bundle config failed")))
+					Expect(err).To(MatchError(ContainSubstring("bundle config path failed")))
+				})
+			})
+
+			context("when bundle config without fails", func() {
+				it.Before(func() {
+					executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
+						if strings.Contains(strings.Join(execution.Args, " "), "config without") {
+							fmt.Fprint(execution.Stdout, "stdout output")
+							fmt.Fprint(execution.Stderr, "stderr output")
+
+							return errors.New("bundle config without failed")
+						}
+
+						return nil
+					}
+				})
+
+				it("prints the execution output and returns an error", func() {
+					err := installProcess.Execute(workingDir, "some-dir")
+					Expect(err).To(MatchError(ContainSubstring("failed to execute bundle config")))
+					Expect(err).To(MatchError(ContainSubstring("bundle config without failed")))
+				})
+			})
+
+			context("when bundle config clean fails", func() {
+				it.Before(func() {
+					executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
+						if strings.Contains(strings.Join(execution.Args, " "), "config clean") {
+							fmt.Fprint(execution.Stdout, "stdout output")
+							fmt.Fprint(execution.Stderr, "stderr output")
+
+							return errors.New("bundle config clean failed")
+						}
+
+						return nil
+					}
+				})
+
+				it("prints the execution output and returns an error", func() {
+					err := installProcess.Execute(workingDir, "some-dir")
+					Expect(err).To(MatchError(ContainSubstring("failed to execute bundle config")))
+					Expect(err).To(MatchError(ContainSubstring("bundle config clean failed")))
 				})
 			})
 
