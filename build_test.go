@@ -139,9 +139,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						"BUNDLE_PATH.default":    filepath.Join(layersDir, "gems"),
 						"BUNDLE_WITHOUT.default": "development:test",
 					},
-					Build:  true,
-					Launch: true,
-					Cache:  true,
+					ProcessLaunchEnv: map[string]packit.Environment{},
+					Build:            true,
+					Launch:           true,
+					Cache:            true,
 					Metadata: map[string]interface{}{
 						"built_at":     timeStamp.Format(time.RFC3339Nano),
 						"cache_sha":    "",
@@ -223,9 +224,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 								"BUNDLE_PATH.default":    filepath.Join(layersDir, "gems"),
 								"BUNDLE_WITHOUT.default": "development:test",
 							},
-							Build:  false,
-							Launch: true,
-							Cache:  false,
+							ProcessLaunchEnv: map[string]packit.Environment{},
+							Build:            false,
+							Launch:           true,
+							Cache:            false,
 							Metadata: map[string]interface{}{
 								"built_at":     timeStamp.Format(time.RFC3339Nano),
 								"cache_sha":    "",
@@ -294,14 +296,15 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						},
 						Layers: []packit.Layer{
 							{
-								Name:      "gems",
-								Path:      filepath.Join(layersDir, "gems"),
-								LaunchEnv: packit.Environment{},
-								BuildEnv:  packit.Environment{},
-								SharedEnv: packit.Environment{},
-								Build:     false,
-								Launch:    false,
-								Cache:     false,
+								Name:             "gems",
+								Path:             filepath.Join(layersDir, "gems"),
+								LaunchEnv:        packit.Environment{},
+								BuildEnv:         packit.Environment{},
+								SharedEnv:        packit.Environment{},
+								ProcessLaunchEnv: map[string]packit.Environment{},
+								Build:            false,
+								Launch:           false,
+								Cache:            false,
 								Metadata: map[string]interface{}{
 									"built_at":     timeStamp.Format(time.RFC3339Nano),
 									"cache_sha":    "some-calculator-sha",
@@ -384,9 +387,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 									"BUNDLE_PATH.default":    filepath.Join(layersDir, "gems"),
 									"BUNDLE_WITHOUT.default": "development:test",
 								},
-								Build:  true,
-								Launch: false,
-								Cache:  true,
+								ProcessLaunchEnv: map[string]packit.Environment{},
+								Build:            true,
+								Launch:           false,
+								Cache:            true,
 								Metadata: map[string]interface{}{
 									"built_at":     timeStamp.Format(time.RFC3339Nano),
 									"cache_sha":    "some-calculator-sha",
@@ -463,9 +467,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 										"BUNDLE_PATH.default":    filepath.Join(layersDir, "gems"),
 										"BUNDLE_WITHOUT.default": "development:test",
 									},
-									Build:  false,
-									Launch: false,
-									Cache:  false,
+									ProcessLaunchEnv: map[string]packit.Environment{},
+									Build:            false,
+									Launch:           false,
+									Cache:            false,
 									Metadata: map[string]interface{}{
 										"built_at":     timeStamp.Format(time.RFC3339Nano),
 										"cache_sha":    "some-calculator-sha",
@@ -523,14 +528,15 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 							},
 							Layers: []packit.Layer{
 								{
-									Name:      "gems",
-									Path:      filepath.Join(layersDir, "gems"),
-									LaunchEnv: packit.Environment{},
-									BuildEnv:  packit.Environment{},
-									SharedEnv: packit.Environment{},
-									Build:     false,
-									Launch:    false,
-									Cache:     false,
+									Name:             "gems",
+									Path:             filepath.Join(layersDir, "gems"),
+									LaunchEnv:        packit.Environment{},
+									BuildEnv:         packit.Environment{},
+									SharedEnv:        packit.Environment{},
+									ProcessLaunchEnv: map[string]packit.Environment{},
+									Build:            false,
+									Launch:           false,
+									Cache:            false,
 									Metadata: map[string]interface{}{
 										"cache_sha":    "some-calculator-sha",
 										"ruby_version": "1.2.3",
@@ -574,6 +580,32 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					Layers: packit.Layers{Path: layersDir},
 				})
 				Expect(err).To(MatchError(ContainSubstring("permission denied")))
+			})
+		})
+
+		context("when the gems layer cannot be reset", func() {
+			it.Before(func() {
+				Expect(os.MkdirAll(filepath.Join(layersDir, "gems", "something"), os.ModePerm)).To(Succeed())
+				Expect(os.Chmod(filepath.Join(layersDir, "gems"), 0500)).To(Succeed())
+			})
+
+			it.After(func() {
+				Expect(os.Chmod(filepath.Join(layersDir, "gems"), os.ModePerm)).To(Succeed())
+			})
+
+			it("returns an error", func() {
+				_, err := build(packit.BuildContext{
+					CNBPath: cnbDir,
+					Plan: packit.BuildpackPlan{
+						Entries: []packit.BuildpackPlanEntry{
+							{
+								Name: "gems",
+							},
+						},
+					},
+					Layers: packit.Layers{Path: layersDir},
+				})
+				Expect(err).To(MatchError(ContainSubstring("could not remove file")))
 			})
 		})
 
