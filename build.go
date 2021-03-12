@@ -97,13 +97,6 @@ func Build(
 
 		logger.Process("Executing build process")
 
-		gemsLayer, err = gemsLayer.Reset()
-		if err != nil {
-			return packit.BuildResult{}, err
-		}
-		gemsLayer.Launch, gemsLayer.Build = entries.MergeLayerTypes("gems", context.Plan.Entries)
-		gemsLayer.Cache = gemsLayer.Build
-
 		duration, err := clock.Measure(func() error {
 			return installProcess.Execute(context.WorkingDir, gemsLayer.Path)
 		})
@@ -113,6 +106,9 @@ func Build(
 
 		logger.Action("Completed in %s", duration.Round(time.Millisecond))
 		logger.Break()
+
+		gemsLayer.Launch, gemsLayer.Build = entries.MergeLayerTypes("gems", context.Plan.Entries)
+		gemsLayer.Cache = gemsLayer.Build
 
 		gemsLayer.Metadata = map[string]interface{}{
 			"built_at":     clock.Now().Format(time.RFC3339Nano),

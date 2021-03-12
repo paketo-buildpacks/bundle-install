@@ -583,32 +583,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			})
 		})
 
-		context("when the gems layer cannot be reset", func() {
-			it.Before(func() {
-				Expect(os.MkdirAll(filepath.Join(layersDir, "gems", "something"), os.ModePerm)).To(Succeed())
-				Expect(os.Chmod(filepath.Join(layersDir, "gems"), 0500)).To(Succeed())
-			})
-
-			it.After(func() {
-				Expect(os.Chmod(filepath.Join(layersDir, "gems"), os.ModePerm)).To(Succeed())
-			})
-
-			it("returns an error", func() {
-				_, err := build(packit.BuildContext{
-					CNBPath: cnbDir,
-					Plan: packit.BuildpackPlan{
-						Entries: []packit.BuildpackPlanEntry{
-							{
-								Name: "gems",
-							},
-						},
-					},
-					Layers: packit.Layers{Path: layersDir},
-				})
-				Expect(err).To(MatchError(ContainSubstring("could not remove file")))
-			})
-		})
-
 		context("when install process returns an error", func() {
 			it.Before(func() {
 				installProcess.ExecuteCall.Returns.Error = errors.New("some-error")
