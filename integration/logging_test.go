@@ -66,16 +66,15 @@ func testLogging(t *testing.T, context spec.G, it spec.S) {
 			Expect(logs).To(ContainLines(
 				MatchRegexp(fmt.Sprintf(`%s \d+\.\d+\.\d+`, settings.Buildpack.Name)),
 				"  Executing build process",
-				MatchRegexp(fmt.Sprintf("    Running 'bundle config path /layers/%s/gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
-				"    Running 'bundle config without development:test'",
-				"    Running 'bundle config clean true'",
-				"    Running 'bundle config cache_path --parseable'",
+				"    Running 'bundle config --global clean true'",
+				MatchRegexp(fmt.Sprintf("    Running 'bundle config --global path /layers/%s/gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+				"    Running 'bundle config --global without development:test'",
+				"    Running 'bundle config --global cache_path --parseable'",
 				"    Running 'bundle install'",
 				MatchRegexp(`      Completed in \d+\.?\d*`),
 				"",
 				"  Configuring environment",
-				MatchRegexp(fmt.Sprintf(`    BUNDLE_PATH    -> "/layers/%s/gems"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
-				`    BUNDLE_WITHOUT -> "development:test"`,
+				MatchRegexp(fmt.Sprintf(`    BUNDLE_USER_CONFIG -> "/layers/%s/gems/config"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
 				"",
 			))
 		})

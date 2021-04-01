@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/paketo-buildpacks/occam"
+	"github.com/pelletier/go-toml"
 	"github.com/sclevine/spec"
 	"github.com/sclevine/spec/report"
 
@@ -61,7 +61,7 @@ func TestIntegration(t *testing.T) {
 	file, err = os.Open("../buildpack.toml")
 	Expect(err).NotTo(HaveOccurred())
 
-	_, err = toml.DecodeReader(file, &settings)
+	err = toml.NewDecoder(file).Decode(&settings)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(file.Close()).To(Succeed())
 
@@ -100,7 +100,7 @@ func TestIntegration(t *testing.T) {
 		Execute(settings.Config.BuildPlan)
 	Expect(err).NotTo(HaveOccurred())
 
-	SetDefaultEventuallyTimeout(10 * time.Second)
+	SetDefaultEventuallyTimeout(30 * time.Second)
 
 	suite := spec.New("Integration", spec.Report(report.Terminal{}), spec.Parallel())
 	suite("SimpleApp", testSimpleApp)

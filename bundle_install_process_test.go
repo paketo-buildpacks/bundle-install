@@ -12,6 +12,7 @@ import (
 
 	bundleinstall "github.com/paketo-buildpacks/bundle-install"
 	"github.com/paketo-buildpacks/bundle-install/fakes"
+	"github.com/paketo-buildpacks/packit"
 	"github.com/paketo-buildpacks/packit/pexec"
 	"github.com/sclevine/spec"
 
@@ -19,56 +20,208 @@ import (
 )
 
 func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
-	var Expect = NewWithT(t).Expect
+	var (
+		Expect = NewWithT(t).Expect
 
-	context("Execute", func() {
-		var (
-			workingDir string
-			path       string
-			executions []pexec.Execution
-			executable *fakes.Executable
+		workingDir      string
+		layerPath       string
+		executions      []pexec.Execution
+		executable      *fakes.Executable
+		versionResolver *fakes.VersionResolver
+		calculator      *fakes.Calculator
 
-			installProcess bundleinstall.BundleInstallProcess
-		)
+		installProcess bundleinstall.BundleInstallProcess
+	)
+
+	it.Before(func() {
+		var err error
+		workingDir, err = ioutil.TempDir("", "working-dir")
+		Expect(err).NotTo(HaveOccurred())
+
+		layerPath, err = ioutil.TempDir("", "layer")
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(os.RemoveAll(layerPath)).To(Succeed())
+
+		executions = []pexec.Execution{}
+		executable = &fakes.Executable{}
+		executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
+			executions = append(executions, execution)
+
+			return nil
+		}
+
+		logEmitter := bundleinstall.NewLogEmitter(bytes.NewBuffer(nil))
+		versionResolver = &fakes.VersionResolver{}
+		calculator = &fakes.Calculator{}
+
+		installProcess = bundleinstall.NewBundleInstallProcess(executable, logEmitter, versionResolver, calculator)
+	})
+
+	it.After(func() {
+		Expect(os.RemoveAll(workingDir)).To(Succeed())
+		Expect(os.RemoveAll(layerPath)).To(Succeed())
+	})
+
+	context("ShouldRun", func() {
+		var layer packit.Layer
 
 		it.Before(func() {
-			var err error
-			workingDir, err = ioutil.TempDir("", "working-dir")
-			Expect(err).NotTo(HaveOccurred())
-
-			executions = []pexec.Execution{}
-			executable = &fakes.Executable{}
-			executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
-				executions = append(executions, execution)
-
-				return nil
+			layer = packit.Layer{
+				Path: layerPath,
+				Metadata: map[string]interface{}{
+					"cache_sha":    "some-checksum",
+					"ruby_version": "1.2.3",
+				},
 			}
 
-			path = os.Getenv("PATH")
-			os.Setenv("PATH", "/some/bin")
+			versionResolver.LookupCall.Returns.Version = "2.3.4"
+			versionResolver.CompareMajorMinorCall.Returns.Bool = true
 
-			logEmitter := bundleinstall.NewLogEmitter(bytes.NewBuffer(nil))
+			calculator.SumCall.Returns.String = "other-checksum"
 
-			installProcess = bundleinstall.NewBundleInstallProcess(executable, logEmitter)
+			Expect(os.WriteFile(filepath.Join(workingDir, "Gemfile.lock"), nil, 0600)).To(Succeed())
 		})
 
-		it.After(func() {
-			os.Setenv("PATH", path)
+		it("indicates that the install process should run", func() {
+			ok, checksum, rubyVersion, err := installProcess.ShouldRun(layer, workingDir)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ok).To(BeTrue())
+			Expect(checksum).To(Equal("other-checksum"))
+			Expect(rubyVersion).To(Equal("2.3.4"))
 
-			Expect(os.RemoveAll(workingDir)).To(Succeed())
+			Expect(versionResolver.LookupCall.CallCount).To(Equal(1))
+			Expect(versionResolver.CompareMajorMinorCall.Receives.Left).To(Equal("1.2.3"))
+			Expect(versionResolver.CompareMajorMinorCall.Receives.Right).To(Equal("2.3.4"))
+
+			Expect(calculator.SumCall.Receives.Paths).To(Equal([]string{
+				filepath.Join(workingDir, "Gemfile"),
+				filepath.Join(workingDir, "Gemfile.lock"),
+			}))
 		})
 
+		context("when the checksum matches, but the ruby version does not", func() {
+			it.Before(func() {
+				versionResolver.LookupCall.Returns.Version = "2.3.4"
+				versionResolver.CompareMajorMinorCall.Returns.Bool = false
+
+				calculator.SumCall.Returns.String = "some-checksum"
+			})
+
+			it("indicates that the install process should run", func() {
+				ok, checksum, rubyVersion, err := installProcess.ShouldRun(layer, workingDir)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(ok).To(BeTrue())
+				Expect(checksum).To(Equal("some-checksum"))
+				Expect(rubyVersion).To(Equal("2.3.4"))
+			})
+		})
+
+		context("when the checksum doesn't match, but the ruby version does", func() {
+			it.Before(func() {
+				versionResolver.LookupCall.Returns.Version = "1.2.3"
+				versionResolver.CompareMajorMinorCall.Returns.Bool = true
+
+				calculator.SumCall.Returns.String = "other-checksum"
+			})
+
+			it("indicates that the install process should run", func() {
+				ok, checksum, rubyVersion, err := installProcess.ShouldRun(layer, workingDir)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(ok).To(BeTrue())
+				Expect(checksum).To(Equal("other-checksum"))
+				Expect(rubyVersion).To(Equal("1.2.3"))
+			})
+		})
+
+		context("when the checksum and ruby version matches", func() {
+			it.Before(func() {
+				versionResolver.LookupCall.Returns.Version = "1.2.3"
+				versionResolver.CompareMajorMinorCall.Returns.Bool = true
+
+				calculator.SumCall.Returns.String = "some-checksum"
+			})
+
+			it("indicates that the install process should not run", func() {
+				ok, checksum, rubyVersion, err := installProcess.ShouldRun(layer, workingDir)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(ok).To(BeFalse())
+				Expect(checksum).To(Equal("some-checksum"))
+				Expect(rubyVersion).To(Equal("1.2.3"))
+			})
+		})
+
+		context("failure cases", func() {
+			context("when the ruby version cannot be looked up", func() {
+				it.Before(func() {
+					versionResolver.LookupCall.Returns.Err = errors.New("failed to lookup ruby version")
+				})
+
+				it("returns an error", func() {
+					_, _, _, err := installProcess.ShouldRun(layer, workingDir)
+					Expect(err).To(MatchError("failed to lookup ruby version"))
+				})
+			})
+
+			context("when the ruby version cannot be compared", func() {
+				it.Before(func() {
+					versionResolver.CompareMajorMinorCall.Returns.Error = errors.New("failed to compare ruby version")
+				})
+
+				it("returns an error", func() {
+					_, _, _, err := installProcess.ShouldRun(layer, workingDir)
+					Expect(err).To(MatchError("failed to compare ruby version"))
+				})
+			})
+
+			context("when the Gemfile.lock cannot be stat'd", func() {
+				it.Before(func() {
+					Expect(os.Chmod(workingDir, 0000)).To(Succeed())
+				})
+
+				it.After(func() {
+					Expect(os.Chmod(workingDir, os.ModePerm)).To(Succeed())
+				})
+
+				it("returns an error", func() {
+					_, _, _, err := installProcess.ShouldRun(layer, workingDir)
+					Expect(err).To(MatchError(ContainSubstring("permission denied")))
+				})
+			})
+
+			context("when a checksum cannot be calculated", func() {
+				it.Before(func() {
+					calculator.SumCall.Returns.Error = errors.New("failed to calculate checksum")
+				})
+
+				it.After(func() {
+					Expect(os.Chmod(workingDir, os.ModePerm)).To(Succeed())
+				})
+
+				it("returns an error", func() {
+					_, _, _, err := installProcess.ShouldRun(layer, workingDir)
+					Expect(err).To(MatchError("failed to calculate checksum"))
+				})
+			})
+		})
+	})
+
+	context("Execute", func() {
 		context("when there is no vendor/cache directory present", func() {
 			it("runs the bundle install process", func() {
-				err := installProcess.Execute(workingDir, "some-dir")
+				err := installProcess.Execute(workingDir, layerPath, map[string]string{"path": "some-dir"})
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(executions).To(HaveLen(5))
-				Expect(executions[0].Args).To(Equal([]string{"config", "path", "some-dir"}))
-				Expect(executions[1].Args).To(Equal([]string{"config", "without", "development:test"}))
-				Expect(executions[2].Args).To(Equal([]string{"config", "clean", "true"}))
-				Expect(executions[3].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
-				Expect(executions[4].Args).To(Equal([]string{"install"}))
+				Expect(executions).To(HaveLen(3))
+
+				Expect(executions[0].Args).To(Equal([]string{"config", "--global", "path", "some-dir"}))
+				Expect(executions[0].Env).To(ContainElement(fmt.Sprintf("BUNDLE_USER_CONFIG=%s", filepath.Join(layerPath, "config"))))
+
+				Expect(executions[1].Args).To(Equal([]string{"config", "--global", "cache_path", "--parseable"}))
+				Expect(executions[1].Env).To(ContainElement(fmt.Sprintf("BUNDLE_USER_CONFIG=%s", filepath.Join(layerPath, "config"))))
+
+				Expect(executions[2].Args).To(Equal([]string{"install"}))
+				Expect(executions[2].Env).To(ContainElement(fmt.Sprintf("BUNDLE_USER_CONFIG=%s", filepath.Join(layerPath, "config"))))
 			})
 		})
 
@@ -78,15 +231,13 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 			})
 
 			it("runs the bundle install process", func() {
-				err := installProcess.Execute(workingDir, "some-dir")
+				err := installProcess.Execute(workingDir, layerPath, map[string]string{"clean": "true"})
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(executions).To(HaveLen(5))
-				Expect(executions[0].Args).To(Equal([]string{"config", "path", "some-dir"}))
-				Expect(executions[1].Args).To(Equal([]string{"config", "without", "development:test"}))
-				Expect(executions[2].Args).To(Equal([]string{"config", "clean", "true"}))
-				Expect(executions[3].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
-				Expect(executions[4].Args).To(Equal([]string{"install", "--local"}))
+				Expect(executions).To(HaveLen(3))
+				Expect(executions[0].Args).To(Equal([]string{"config", "--global", "clean", "true"}))
+				Expect(executions[1].Args).To(Equal([]string{"config", "--global", "cache_path", "--parseable"}))
+				Expect(executions[2].Args).To(Equal([]string{"install", "--local"}))
 			})
 		})
 
@@ -96,7 +247,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
 					executions = append(executions, execution)
 
-					if strings.Contains(strings.Join(execution.Args, " "), "config cache_path --parseable") {
+					if strings.Contains(strings.Join(execution.Args, " "), "config --global cache_path --parseable") {
 						fmt.Fprintf(execution.Stdout, "cache_path=other_dir/other_cache")
 					}
 
@@ -105,23 +256,55 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 			})
 
 			it("runs the bundle install process", func() {
-				err := installProcess.Execute(workingDir, "some-dir")
+				err := installProcess.Execute(workingDir, layerPath, map[string]string{
+					"without": "development:test",
+				})
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(executions).To(HaveLen(5))
-				Expect(executions[0].Args).To(Equal([]string{"config", "path", "some-dir"}))
-				Expect(executions[1].Args).To(Equal([]string{"config", "without", "development:test"}))
-				Expect(executions[2].Args).To(Equal([]string{"config", "clean", "true"}))
-				Expect(executions[3].Args).To(Equal([]string{"config", "cache_path", "--parseable"}))
-				Expect(executions[4].Args).To(Equal([]string{"install", "--local"}))
+				Expect(executions).To(HaveLen(3))
+				Expect(executions[0].Args).To(Equal([]string{"config", "--global", "without", "development:test"}))
+				Expect(executions[1].Args).To(Equal([]string{"config", "--global", "cache_path", "--parseable"}))
+				Expect(executions[2].Args).To(Equal([]string{"install", "--local"}))
+			})
+		})
+
+		context("when there is local bundle config", func() {
+			it.Before(func() {
+				Expect(os.Mkdir(filepath.Join(workingDir, ".bundle"), os.ModePerm)).To(Succeed())
+				Expect(os.WriteFile(filepath.Join(workingDir, ".bundle", "config"), []byte("some-bundle-config"), 0600)).To(Succeed())
+			})
+
+			it("copies that config into the global config", func() {
+				err := installProcess.Execute(workingDir, layerPath, nil)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(executions).To(HaveLen(2))
+				Expect(executions[0].Args).To(Equal([]string{"config", "--global", "cache_path", "--parseable"}))
+				Expect(executions[1].Args).To(Equal([]string{"install"}))
+
+				contents, err := os.ReadFile(filepath.Join(layerPath, "config"))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(string(contents)).To(Equal("some-bundle-config"))
 			})
 		})
 
 		context("failure cases", func() {
-			context("when bundle config path fails", func() {
+			context("when the config cannot be copied into the layer", func() {
+				it.Before(func() {
+					Expect(os.Mkdir(filepath.Join(workingDir, ".bundle"), os.ModePerm)).To(Succeed())
+					Expect(os.WriteFile(filepath.Join(workingDir, ".bundle", "config"), nil, 0000)).To(Succeed())
+				})
+
+				it("returns an error", func() {
+					err := installProcess.Execute(workingDir, layerPath, nil)
+					Expect(err).To(MatchError(ContainSubstring("permission denied")))
+				})
+			})
+
+			context("when bundle config fails", func() {
 				it.Before(func() {
 					executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
-						if strings.Contains(strings.Join(execution.Args, " "), "config path") {
+						if strings.Contains(strings.Join(execution.Args, " "), "config --global path") {
 							fmt.Fprint(execution.Stdout, "stdout output")
 							fmt.Fprint(execution.Stderr, "stderr output")
 
@@ -133,51 +316,9 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				})
 
 				it("prints the execution output and returns an error", func() {
-					err := installProcess.Execute(workingDir, "some-dir")
+					err := installProcess.Execute(workingDir, layerPath, map[string]string{"path": "some-dir"})
 					Expect(err).To(MatchError(ContainSubstring("failed to execute bundle config")))
 					Expect(err).To(MatchError(ContainSubstring("bundle config path failed")))
-				})
-			})
-
-			context("when bundle config without fails", func() {
-				it.Before(func() {
-					executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
-						if strings.Contains(strings.Join(execution.Args, " "), "config without") {
-							fmt.Fprint(execution.Stdout, "stdout output")
-							fmt.Fprint(execution.Stderr, "stderr output")
-
-							return errors.New("bundle config without failed")
-						}
-
-						return nil
-					}
-				})
-
-				it("prints the execution output and returns an error", func() {
-					err := installProcess.Execute(workingDir, "some-dir")
-					Expect(err).To(MatchError(ContainSubstring("failed to execute bundle config")))
-					Expect(err).To(MatchError(ContainSubstring("bundle config without failed")))
-				})
-			})
-
-			context("when bundle config clean fails", func() {
-				it.Before(func() {
-					executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
-						if strings.Contains(strings.Join(execution.Args, " "), "config clean") {
-							fmt.Fprint(execution.Stdout, "stdout output")
-							fmt.Fprint(execution.Stderr, "stderr output")
-
-							return errors.New("bundle config clean failed")
-						}
-
-						return nil
-					}
-				})
-
-				it("prints the execution output and returns an error", func() {
-					err := installProcess.Execute(workingDir, "some-dir")
-					Expect(err).To(MatchError(ContainSubstring("failed to execute bundle config")))
-					Expect(err).To(MatchError(ContainSubstring("bundle config clean failed")))
 				})
 			})
 
@@ -191,7 +332,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				})
 
 				it("runs the bundle install process", func() {
-					err := installProcess.Execute(workingDir, "some-dir")
+					err := installProcess.Execute(workingDir, layerPath, map[string]string{"path": "some-dir"})
 					Expect(err).To(MatchError(ContainSubstring("permission denied")))
 				})
 			})
@@ -209,8 +350,9 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 						return nil
 					}
 				})
+
 				it("prints the execution output and returns an error", func() {
-					err := installProcess.Execute(workingDir, "some-dir")
+					err := installProcess.Execute(workingDir, layerPath, map[string]string{"path": "some-dir"})
 					Expect(err).To(MatchError(ContainSubstring("failed to execute bundle install")))
 					Expect(err).To(MatchError(ContainSubstring("bundle install failed")))
 				})

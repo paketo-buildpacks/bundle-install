@@ -25,16 +25,13 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 		layersDir  string
 		workingDir string
-		cnbDir     string
 		buffer     *bytes.Buffer
 		timeStamp  time.Time
 
 		clock chronos.Clock
 
-		installProcess  *fakes.InstallProcess
-		calculator      *fakes.Calculator
-		entryResolver   *fakes.EntryResolver
-		versionResolver *fakes.VersionResolver
+		installProcess *fakes.InstallProcess
+		entryResolver  *fakes.EntryResolver
 
 		build packit.BuildFunc
 	)
@@ -44,55 +41,38 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		layersDir, err = ioutil.TempDir("", "layers")
 		Expect(err).NotTo(HaveOccurred())
 
-		cnbDir, err = ioutil.TempDir("", "cnb")
-		Expect(err).NotTo(HaveOccurred())
-
 		workingDir, err = ioutil.TempDir("", "working-dir")
 		Expect(err).NotTo(HaveOccurred())
 
+		Expect(os.Mkdir(filepath.Join(workingDir, ".bundle"), os.ModePerm)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(workingDir, ".bundle", "config"), nil, 0600)).To(Succeed())
+
 		installProcess = &fakes.InstallProcess{}
+		installProcess.ShouldRunCall.Returns.Should = true
+		installProcess.ShouldRunCall.Returns.RubyVersion = "some-version"
+		installProcess.ShouldRunCall.Returns.Checksum = "some-checksum"
 
 		buffer = bytes.NewBuffer(nil)
 		logEmitter := bundleinstall.NewLogEmitter(buffer)
 
 		timeStamp = time.Now()
-		clock = chronos.NewClock(func() time.Time {
-			return timeStamp
-		})
-
-		calculator = &fakes.Calculator{}
-		calculator.SumCall.Returns.String = "some-calculator-sha"
+		clock = chronos.NewClock(func() time.Time { return timeStamp })
 
 		entryResolver = &fakes.EntryResolver{}
-		entryResolver.ResolveCall.Returns.BuildpackPlanEntry = packit.BuildpackPlanEntry{
-			Name: "gems",
-			Metadata: map[string]interface{}{
-				"launch": true,
-				"build":  true,
-			},
-		}
-
 		entryResolver.MergeLayerTypesCall.Returns.Launch = true
 		entryResolver.MergeLayerTypesCall.Returns.Build = true
 
-		versionResolver = &fakes.VersionResolver{}
-		versionResolver.LookupCall.Returns.Version = "some-version"
-		versionResolver.CompareMajorMinorCall.Returns.Bool = true
-
-		build = bundleinstall.Build(installProcess, calculator, logEmitter, clock, entryResolver, versionResolver)
+		build = bundleinstall.Build(installProcess, logEmitter, clock, entryResolver)
 	})
 
 	it.After(func() {
 		Expect(os.RemoveAll(layersDir)).To(Succeed())
-		Expect(os.RemoveAll(cnbDir)).To(Succeed())
 		Expect(os.RemoveAll(workingDir)).To(Succeed())
 	})
 
 	it("returns a result that installs gems", func() {
 		result, err := build(packit.BuildContext{
 			WorkingDir: workingDir,
-			CNBPath:    cnbDir,
-			Stack:      "some-stack",
 			BuildpackInfo: packit.BuildpackInfo{
 				Name:    "Some Buildpack",
 				Version: "some-version",
@@ -111,24 +91,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			Layers: packit.Layers{Path: layersDir},
 		})
 		Expect(err).NotTo(HaveOccurred())
-
-		Expect(versionResolver.LookupCall.CallCount).To(Equal(1))
-
-		Expect(installProcess.ExecuteCall.CallCount).To(Equal(1))
-		Expect(installProcess.ExecuteCall.Receives.WorkingDir).To(Equal(workingDir))
-		Expect(installProcess.ExecuteCall.Receives.LayerPath).To(Equal(filepath.Join(layersDir, "gems")))
 		Expect(result).To(Equal(packit.BuildResult{
-			Plan: packit.BuildpackPlan{
-				Entries: []packit.BuildpackPlanEntry{
-					{
-						Name: "gems",
-						Metadata: map[string]interface{}{
-							"launch": true,
-							"build":  true,
-						},
-					},
-				},
-			},
 			Layers: []packit.Layer{
 				{
 					Name:      "gems",
@@ -136,8 +99,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					LaunchEnv: packit.Environment{},
 					BuildEnv:  packit.Environment{},
 					SharedEnv: packit.Environment{
-						"BUNDLE_PATH.default":    filepath.Join(layersDir, "gems"),
-						"BUNDLE_WITHOUT.default": "development:test",
+						"BUNDLE_USER_CONFIG.default": filepath.Join(layersDir, "gems", "config"),
 					},
 					ProcessLaunchEnv: map[string]packit.Environment{},
 					Build:            true,
@@ -145,11 +107,33 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					Cache:            true,
 					Metadata: map[string]interface{}{
 						"built_at":     timeStamp.Format(time.RFC3339Nano),
-						"cache_sha":    "",
+						"cache_sha":    "some-checksum",
 						"ruby_version": "some-version",
 					},
 				},
 			},
+		}))
+
+		Expect(filepath.Join(workingDir, ".bundle", "config")).NotTo(BeAnExistingFile())
+
+		Expect(installProcess.ShouldRunCall.Receives.Layer).To(Equal(packit.Layer{
+			Path:      filepath.Join(layersDir, "gems"),
+			Name:      "gems",
+			LaunchEnv: packit.Environment{},
+			BuildEnv:  packit.Environment{},
+			SharedEnv: packit.Environment{
+				"BUNDLE_USER_CONFIG.default": filepath.Join(layersDir, "gems", "config"),
+			},
+			ProcessLaunchEnv: map[string]packit.Environment{},
+		}))
+		Expect(installProcess.ShouldRunCall.Receives.WorkingDir).To(Equal(workingDir))
+
+		Expect(installProcess.ExecuteCall.CallCount).To(Equal(1))
+		Expect(installProcess.ExecuteCall.Receives.WorkingDir).To(Equal(workingDir))
+		Expect(installProcess.ExecuteCall.Receives.Config).To(Equal(map[string]string{
+			"path":    filepath.Join(layersDir, "gems"),
+			"without": "development:test",
+			"clean":   "true",
 		}))
 
 		Expect(buffer.String()).To(ContainSubstring("Some Buildpack some-version"))
@@ -157,397 +141,89 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		Expect(buffer.String()).To(ContainSubstring("Configuring environment"))
 	})
 
-	context("when rebuilding a layer", func() {
+	context("when reusing a layer", func() {
 		it.Before(func() {
-			err := ioutil.WriteFile(filepath.Join(layersDir, fmt.Sprintf("%s.toml", bundleinstall.LayerNameGems)), []byte(fmt.Sprintf(`[metadata]
-			cache_sha = "some-calculator-sha"
-			ruby_version = "some-version"
-			built_at = "%s"
-			`, timeStamp.Format(time.RFC3339Nano))), 0600)
+			installProcess.ShouldRunCall.Returns.Should = false
+
+			err := ioutil.WriteFile(filepath.Join(layersDir, fmt.Sprintf("%s.toml", bundleinstall.LayerNameGems)), []byte(fmt.Sprintf(`
+build = true
+launch = true
+cache = true
+
+[metadata]
+	cache_sha = "some-checksum"
+	ruby_version = "some-version"
+	built_at = "%s"
+`, timeStamp.Format(time.RFC3339Nano))), 0600)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		context("when working dir has no Gemfile.lock", func() {
-			it.Before(func() {
-				entryResolver.ResolveCall.Returns.BuildpackPlanEntry = packit.BuildpackPlanEntry{
-					Name: "gems",
-					Metadata: map[string]interface{}{
-						"launch": true,
-					},
-				}
-
-				entryResolver.MergeLayerTypesCall.Returns.Launch = true
-				entryResolver.MergeLayerTypesCall.Returns.Build = false
-			})
-
-			it("runs the install process", func() {
-				result, err := build(packit.BuildContext{
-					WorkingDir: workingDir,
-					CNBPath:    cnbDir,
-					Stack:      "some-stack",
-					BuildpackInfo: packit.BuildpackInfo{
-						Name:    "Some Buildpack",
-						Version: "some-version",
-					},
-					Plan: packit.BuildpackPlan{
-						Entries: []packit.BuildpackPlanEntry{
-							{
-								Name: "gems",
-								Metadata: map[string]interface{}{
-									"launch": true,
-								},
-							},
-						},
-					},
-					Layers: packit.Layers{Path: layersDir},
-				})
-				Expect(err).NotTo(HaveOccurred())
-
-				Expect(result).To(Equal(packit.BuildResult{
-					Plan: packit.BuildpackPlan{
-						Entries: []packit.BuildpackPlanEntry{
-							{
-								Name: "gems",
-								Metadata: map[string]interface{}{
-									"launch": true,
-								},
-							},
-						},
-					},
-					Layers: []packit.Layer{
+		it("returns a result that reuses the existing layer", func() {
+			result, err := build(packit.BuildContext{
+				WorkingDir: workingDir,
+				BuildpackInfo: packit.BuildpackInfo{
+					Name:    "Some Buildpack",
+					Version: "some-version",
+				},
+				Plan: packit.BuildpackPlan{
+					Entries: []packit.BuildpackPlanEntry{
 						{
-							Name:      "gems",
-							Path:      filepath.Join(layersDir, "gems"),
-							LaunchEnv: packit.Environment{},
-							BuildEnv:  packit.Environment{},
-							SharedEnv: packit.Environment{
-								"BUNDLE_PATH.default":    filepath.Join(layersDir, "gems"),
-								"BUNDLE_WITHOUT.default": "development:test",
-							},
-							ProcessLaunchEnv: map[string]packit.Environment{},
-							Build:            false,
-							Launch:           true,
-							Cache:            false,
+							Name: "gems",
 							Metadata: map[string]interface{}{
-								"built_at":     timeStamp.Format(time.RFC3339Nano),
-								"cache_sha":    "",
-								"ruby_version": "some-version",
+								"launch": true,
+								"build":  true,
 							},
 						},
 					},
-				}))
-				Expect(versionResolver.LookupCall.CallCount).To(Equal(1))
-				Expect(installProcess.ExecuteCall.CallCount).To(Equal(1))
+				},
+				Layers: packit.Layers{Path: layersDir},
 			})
-		})
-
-		context("when working dir has Gemfile.lock", func() {
-			it.Before(func() {
-				err := ioutil.WriteFile(filepath.Join(workingDir, "Gemfile"), nil, 0600)
-				Expect(err).NotTo(HaveOccurred())
-
-				err = ioutil.WriteFile(filepath.Join(workingDir, "Gemfile.lock"), nil, 0600)
-				Expect(err).NotTo(HaveOccurred())
-			})
-
-			it.After(func() {
-				err := os.RemoveAll(filepath.Join(workingDir, "Gemfile"))
-				Expect(err).NotTo(HaveOccurred())
-
-				err = os.RemoveAll(filepath.Join(workingDir, "Gemfile.lock"))
-				Expect(err).NotTo(HaveOccurred())
-			})
-
-			context("when checksum matches", func() {
-				it.Before(func() {
-					entryResolver.ResolveCall.Returns.BuildpackPlanEntry = packit.BuildpackPlanEntry{Name: "gems"}
-				})
-
-				it("does not run the install process", func() {
-					result, err := build(packit.BuildContext{
-						WorkingDir: workingDir,
-						CNBPath:    cnbDir,
-						Stack:      "some-stack",
-						BuildpackInfo: packit.BuildpackInfo{
-							Name:    "Some Buildpack",
-							Version: "some-version",
-						},
-						Plan: packit.BuildpackPlan{
-							Entries: []packit.BuildpackPlanEntry{
-								{Name: "gems"},
-							},
-						},
-						Layers: packit.Layers{Path: layersDir},
-					})
-					Expect(err).NotTo(HaveOccurred())
-
-					Expect(versionResolver.LookupCall.CallCount).To(Equal(1))
-
-					Expect(calculator.SumCall.CallCount).To(Equal(1))
-					Expect(calculator.SumCall.Receives.Paths).To(Equal([]string{filepath.Join(workingDir, "Gemfile"), filepath.Join(workingDir, "Gemfile.lock")}))
-
-					Expect(installProcess.ExecuteCall.CallCount).To(Equal(0))
-
-					Expect(result).To(Equal(packit.BuildResult{
-						Plan: packit.BuildpackPlan{
-							Entries: []packit.BuildpackPlanEntry{
-								{Name: "gems"},
-							},
-						},
-						Layers: []packit.Layer{
-							{
-								Name:             "gems",
-								Path:             filepath.Join(layersDir, "gems"),
-								LaunchEnv:        packit.Environment{},
-								BuildEnv:         packit.Environment{},
-								SharedEnv:        packit.Environment{},
-								ProcessLaunchEnv: map[string]packit.Environment{},
-								Build:            false,
-								Launch:           false,
-								Cache:            false,
-								Metadata: map[string]interface{}{
-									"built_at":     timeStamp.Format(time.RFC3339Nano),
-									"cache_sha":    "some-calculator-sha",
-									"ruby_version": "some-version",
-								},
-							},
-						},
-					}))
-				})
-			})
-
-			context("when checksum does not match", func() {
-				it.Before(func() {
-					err := ioutil.WriteFile(filepath.Join(layersDir, fmt.Sprintf("%s.toml", bundleinstall.LayerNameGems)), []byte(fmt.Sprintf(`[metadata]
-					cache_sha = "some-sha-that-does-not-match"
-					ruby_version = "some-version"
-					built_at = "%s"
-					`, timeStamp.Format(time.RFC3339Nano))), 0600)
-					Expect(err).NotTo(HaveOccurred())
-
-					entryResolver.ResolveCall.Returns.BuildpackPlanEntry = packit.BuildpackPlanEntry{
-						Name: "gems",
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result).To(Equal(packit.BuildResult{
+				Layers: []packit.Layer{
+					{
+						Name:             "gems",
+						Path:             filepath.Join(layersDir, "gems"),
+						LaunchEnv:        packit.Environment{},
+						BuildEnv:         packit.Environment{},
+						SharedEnv:        packit.Environment{},
+						ProcessLaunchEnv: map[string]packit.Environment{},
+						Build:            true,
+						Launch:           true,
+						Cache:            true,
 						Metadata: map[string]interface{}{
-							"build": true,
+							"built_at":     timeStamp.Format(time.RFC3339Nano),
+							"cache_sha":    "some-checksum",
+							"ruby_version": "some-version",
 						},
-					}
+					},
+				},
+			}))
 
-					entryResolver.MergeLayerTypesCall.Returns.Launch = false
-					entryResolver.MergeLayerTypesCall.Returns.Build = true
-				})
+			Expect(filepath.Join(workingDir, ".bundle", "config")).NotTo(BeAnExistingFile())
 
-				it("does the install process", func() {
-					result, err := build(packit.BuildContext{
-						WorkingDir: workingDir,
-						CNBPath:    cnbDir,
-						Stack:      "some-stack",
-						BuildpackInfo: packit.BuildpackInfo{
-							Name:    "Some Buildpack",
-							Version: "some-version",
-						},
-						Plan: packit.BuildpackPlan{
-							Entries: []packit.BuildpackPlanEntry{
-								{
-									Name: "gems",
-									Metadata: map[string]interface{}{
-										"build": true,
-									},
-								},
-							},
-						},
-						Layers: packit.Layers{Path: layersDir},
-					})
-					Expect(err).NotTo(HaveOccurred())
+			Expect(installProcess.ShouldRunCall.Receives.Layer).To(Equal(packit.Layer{
+				Path:             filepath.Join(layersDir, "gems"),
+				Name:             "gems",
+				LaunchEnv:        packit.Environment{},
+				BuildEnv:         packit.Environment{},
+				SharedEnv:        packit.Environment{},
+				ProcessLaunchEnv: map[string]packit.Environment{},
+				Build:            true,
+				Launch:           true,
+				Cache:            true,
+				Metadata: map[string]interface{}{
+					"built_at":     timeStamp.Format(time.RFC3339Nano),
+					"cache_sha":    "some-checksum",
+					"ruby_version": "some-version",
+				},
+			}))
+			Expect(installProcess.ShouldRunCall.Receives.WorkingDir).To(Equal(workingDir))
 
-					Expect(versionResolver.LookupCall.CallCount).To(Equal(1))
+			Expect(installProcess.ExecuteCall.CallCount).To(Equal(0))
 
-					Expect(calculator.SumCall.CallCount).To(Equal(1))
-					Expect(calculator.SumCall.Receives.Paths).To(Equal([]string{filepath.Join(workingDir, "Gemfile"), filepath.Join(workingDir, "Gemfile.lock")}))
-
-					Expect(installProcess.ExecuteCall.CallCount).To(Equal(1))
-
-					Expect(result).To(Equal(packit.BuildResult{
-						Plan: packit.BuildpackPlan{
-							Entries: []packit.BuildpackPlanEntry{
-								{
-									Name: "gems",
-									Metadata: map[string]interface{}{
-										"build": true,
-									},
-								},
-							},
-						},
-						Layers: []packit.Layer{
-							{
-								Name:      "gems",
-								Path:      filepath.Join(layersDir, "gems"),
-								LaunchEnv: packit.Environment{},
-								BuildEnv:  packit.Environment{},
-								SharedEnv: packit.Environment{
-									"BUNDLE_PATH.default":    filepath.Join(layersDir, "gems"),
-									"BUNDLE_WITHOUT.default": "development:test",
-								},
-								ProcessLaunchEnv: map[string]packit.Environment{},
-								Build:            true,
-								Launch:           false,
-								Cache:            true,
-								Metadata: map[string]interface{}{
-									"built_at":     timeStamp.Format(time.RFC3339Nano),
-									"cache_sha":    "some-calculator-sha",
-									"ruby_version": "some-version",
-								},
-							},
-						},
-					}))
-				})
-			})
-
-			context("ruby version change between builds", func() {
-				it.Before(func() {
-					err := ioutil.WriteFile(filepath.Join(layersDir, fmt.Sprintf("%s.toml", bundleinstall.LayerNameGems)), []byte(fmt.Sprintf(`[metadata]
-					cache_sha = "some-calculator-sha"
-					ruby_version = "1.2.3"
-					built_at = "%s"
-					`, timeStamp.Format(time.RFC3339Nano))), 0600)
-					Expect(err).NotTo(HaveOccurred())
-
-					entryResolver.ResolveCall.Returns.BuildpackPlanEntry = packit.BuildpackPlanEntry{Name: "gems"}
-					entryResolver.MergeLayerTypesCall.Returns.Launch = false
-					entryResolver.MergeLayerTypesCall.Returns.Build = false
-				})
-
-				context("when ruby major/minor does not match", func() {
-					it.Before(func() {
-						versionResolver.LookupCall.Returns.Version = "2.3.4"
-						versionResolver.CompareMajorMinorCall.Returns.Bool = false
-					})
-
-					it("does the install process", func() {
-						result, err := build(packit.BuildContext{
-							WorkingDir: workingDir,
-							CNBPath:    cnbDir,
-							Stack:      "some-stack",
-							BuildpackInfo: packit.BuildpackInfo{
-								Name:    "Some Buildpack",
-								Version: "some-version",
-							},
-							Plan: packit.BuildpackPlan{
-								Entries: []packit.BuildpackPlanEntry{
-									{
-										Name: "gems",
-									},
-								},
-							},
-							Layers: packit.Layers{Path: layersDir},
-						})
-						Expect(err).NotTo(HaveOccurred())
-
-						Expect(versionResolver.LookupCall.CallCount).To(Equal(1))
-
-						Expect(calculator.SumCall.CallCount).To(Equal(1))
-						Expect(calculator.SumCall.Receives.Paths).To(Equal([]string{filepath.Join(workingDir, "Gemfile"), filepath.Join(workingDir, "Gemfile.lock")}))
-
-						Expect(installProcess.ExecuteCall.CallCount).To(Equal(1))
-
-						Expect(result).To(Equal(packit.BuildResult{
-							Plan: packit.BuildpackPlan{
-								Entries: []packit.BuildpackPlanEntry{
-									{
-										Name: "gems",
-									},
-								},
-							},
-							Layers: []packit.Layer{
-								{
-									Name:      "gems",
-									Path:      filepath.Join(layersDir, "gems"),
-									LaunchEnv: packit.Environment{},
-									BuildEnv:  packit.Environment{},
-									SharedEnv: packit.Environment{
-										"BUNDLE_PATH.default":    filepath.Join(layersDir, "gems"),
-										"BUNDLE_WITHOUT.default": "development:test",
-									},
-									ProcessLaunchEnv: map[string]packit.Environment{},
-									Build:            false,
-									Launch:           false,
-									Cache:            false,
-									Metadata: map[string]interface{}{
-										"built_at":     timeStamp.Format(time.RFC3339Nano),
-										"cache_sha":    "some-calculator-sha",
-										"ruby_version": "2.3.4",
-									},
-								},
-							},
-						}))
-					})
-				})
-
-				context("the ruby patch version changes", func() {
-					it.Before(func() {
-						versionResolver.LookupCall.Returns.Version = "1.2.5"
-					})
-
-					it("does not do the install process", func() {
-						result, err := build(packit.BuildContext{
-							WorkingDir: workingDir,
-							CNBPath:    cnbDir,
-							Stack:      "some-stack",
-							BuildpackInfo: packit.BuildpackInfo{
-								Name:    "Some Buildpack",
-								Version: "some-version",
-							},
-							Plan: packit.BuildpackPlan{
-								Entries: []packit.BuildpackPlanEntry{
-									{
-										Name: "gems",
-										Metadata: map[string]interface{}{
-											"build": true,
-										},
-									},
-								},
-							},
-							Layers: packit.Layers{Path: layersDir},
-						})
-						Expect(err).NotTo(HaveOccurred())
-
-						Expect(versionResolver.LookupCall.CallCount).To(Equal(1))
-						Expect(versionResolver.CompareMajorMinorCall.CallCount).To(Equal(1))
-
-						Expect(calculator.SumCall.CallCount).To(Equal(1))
-						Expect(calculator.SumCall.Receives.Paths).To(Equal([]string{filepath.Join(workingDir, "Gemfile"), filepath.Join(workingDir, "Gemfile.lock")}))
-
-						Expect(installProcess.ExecuteCall.CallCount).To(Equal(0))
-
-						Expect(result).To(Equal(packit.BuildResult{
-							Plan: packit.BuildpackPlan{
-								Entries: []packit.BuildpackPlanEntry{
-									{
-										Name: "gems",
-									},
-								},
-							},
-							Layers: []packit.Layer{
-								{
-									Name:             "gems",
-									Path:             filepath.Join(layersDir, "gems"),
-									LaunchEnv:        packit.Environment{},
-									BuildEnv:         packit.Environment{},
-									SharedEnv:        packit.Environment{},
-									ProcessLaunchEnv: map[string]packit.Environment{},
-									Build:            false,
-									Launch:           false,
-									Cache:            false,
-									Metadata: map[string]interface{}{
-										"cache_sha":    "some-calculator-sha",
-										"ruby_version": "1.2.3",
-										"built_at":     timeStamp.Format(time.RFC3339Nano),
-									},
-								},
-							},
-						}))
-					})
-				})
-			})
+			Expect(buffer.String()).To(ContainSubstring("Some Buildpack some-version"))
+			Expect(buffer.String()).To(ContainSubstring("Reusing cached layer"))
 		})
 	})
 
@@ -564,18 +240,8 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			it("returns an error", func() {
 				_, err := build(packit.BuildContext{
 					WorkingDir: workingDir,
-					CNBPath:    cnbDir,
-					Stack:      "some-stack",
-					BuildpackInfo: packit.BuildpackInfo{
-						Name:    "Some Buildpack",
-						Version: "some-version",
-					},
 					Plan: packit.BuildpackPlan{
-						Entries: []packit.BuildpackPlanEntry{
-							{
-								Name: "gems",
-							},
-						},
+						Entries: []packit.BuildpackPlanEntry{{Name: "gems"}},
 					},
 					Layers: packit.Layers{Path: layersDir},
 				})
@@ -583,125 +249,37 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			})
 		})
 
-		context("when install process returns an error", func() {
+		context("when the install process fails to determine if it should run", func() {
 			it.Before(func() {
-				installProcess.ExecuteCall.Returns.Error = errors.New("some-error")
+				installProcess.ShouldRunCall.Returns.Err = errors.New("failed to check if should run")
 			})
 
 			it("returns an error", func() {
 				_, err := build(packit.BuildContext{
 					WorkingDir: workingDir,
-					CNBPath:    cnbDir,
-					Stack:      "some-stack",
-					BuildpackInfo: packit.BuildpackInfo{
-						Name:    "Some Buildpack",
-						Version: "some-version",
-					},
 					Plan: packit.BuildpackPlan{
-						Entries: []packit.BuildpackPlanEntry{
-							{
-								Name: "gems",
-							},
-						},
+						Entries: []packit.BuildpackPlanEntry{{Name: "gems"}},
 					},
 					Layers: packit.Layers{Path: layersDir},
 				})
-				Expect(err).To(MatchError(ContainSubstring("some-error")))
+				Expect(err).To(MatchError("failed to check if should run"))
 			})
 		})
 
-		context("the ruby version cannot be looked up", func() {
+		context("when the install process fails to execute", func() {
 			it.Before(func() {
-				versionResolver.LookupCall.Returns.Err = errors.New("some-error")
+				installProcess.ExecuteCall.Returns.Error = errors.New("failed to execute")
 			})
 
 			it("returns an error", func() {
 				_, err := build(packit.BuildContext{
 					WorkingDir: workingDir,
-					CNBPath:    cnbDir,
-					Stack:      "some-stack",
-					BuildpackInfo: packit.BuildpackInfo{
-						Name:    "Some Buildpack",
-						Version: "some-version",
-					},
 					Plan: packit.BuildpackPlan{
-						Entries: []packit.BuildpackPlanEntry{
-							{
-								Name: "gems",
-							},
-						},
+						Entries: []packit.BuildpackPlanEntry{{Name: "gems"}},
 					},
 					Layers: packit.Layers{Path: layersDir},
 				})
-
-				Expect(err).To(MatchError(ContainSubstring("some-error")))
-			})
-		})
-
-		context("cached and new ruby versions cannot be compared", func() {
-			it.Before(func() {
-				err := ioutil.WriteFile(filepath.Join(layersDir, fmt.Sprintf("%s.toml", bundleinstall.LayerNameGems)), []byte(fmt.Sprintf(`[metadata]
-					cache_sha = "some-calculator-sha"
-					ruby_version = "1.2.3"
-					built_at = "%s"
-					`, timeStamp.Format(time.RFC3339Nano))), 0600)
-				Expect(err).NotTo(HaveOccurred())
-
-				entryResolver.ResolveCall.Returns.BuildpackPlanEntry = packit.BuildpackPlanEntry{Name: "gems"}
-				versionResolver.CompareMajorMinorCall.Returns.Error = errors.New("some-error")
-			})
-
-			it("returns an error", func() {
-				_, err := build(packit.BuildContext{
-					WorkingDir: workingDir,
-					CNBPath:    cnbDir,
-					Stack:      "some-stack",
-					BuildpackInfo: packit.BuildpackInfo{
-						Name:    "Some Buildpack",
-						Version: "some-version",
-					},
-					Plan: packit.BuildpackPlan{
-						Entries: []packit.BuildpackPlanEntry{
-							{
-								Name: "gems",
-							},
-						},
-					},
-					Layers: packit.Layers{Path: layersDir},
-				})
-
-				Expect(err).To(MatchError(ContainSubstring("some-error")))
-			})
-		})
-
-		context("when the Gemfile.lock in the working dir is not readable", func() {
-			it.Before(func() {
-				Expect(os.Chmod(workingDir, 0000)).To(Succeed())
-			})
-
-			it.After(func() {
-				Expect(os.Chmod(workingDir, 0644)).To(Succeed())
-			})
-
-			it("returns an error", func() {
-				_, err := build(packit.BuildContext{
-					WorkingDir: workingDir,
-					CNBPath:    cnbDir,
-					Stack:      "some-stack",
-					BuildpackInfo: packit.BuildpackInfo{
-						Name:    "Some Buildpack",
-						Version: "some-version",
-					},
-					Plan: packit.BuildpackPlan{
-						Entries: []packit.BuildpackPlanEntry{
-							{
-								Name: "gems",
-							},
-						},
-					},
-					Layers: packit.Layers{Path: layersDir},
-				})
-				Expect(err).To(MatchError(ContainSubstring("failed to stat Gemfile.lock")))
+				Expect(err).To(MatchError("failed to execute"))
 			})
 		})
 	})
