@@ -22,14 +22,14 @@ func main() {
 			bundleinstall.NewBundleInstallProcess(
 				pexec.NewExecutable("bundle"),
 				logEmitter,
+				bundleinstall.NewRubyVersionResolver(
+					pexec.NewExecutable("ruby"),
+				),
+				fs.NewChecksumCalculator(),
 			),
-			fs.NewChecksumCalculator(),
 			logEmitter,
 			chronos.DefaultClock,
 			draft.NewPlanner(),
-			bundleinstall.NewRubyVersionResolver(
-				pexec.NewExecutable("ruby"),
-			),
 		),
 	)
 }

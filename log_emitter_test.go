@@ -27,11 +27,11 @@ func testLogEmitter(t *testing.T, context spec.G, it spec.S) {
 	context("Environment", func() {
 		it("prints details about the environment", func() {
 			emitter.Environment(packit.Environment{
-				"BUNDLE_PATH.default": "/some/path",
+				"BUNDLE_USER_CONFIG.default": "/some/path",
 			})
 
 			Expect(buffer.String()).To(ContainSubstring("  Configuring environment"))
-			Expect(buffer.String()).To(ContainSubstring("    BUNDLE_PATH -> \"/some/path\""))
+			Expect(buffer.String()).To(ContainSubstring("    BUNDLE_USER_CONFIG -> \"/some/path\""))
 		})
 	})
 }

@@ -65,7 +65,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			Expect(err).NotTo(HaveOccurred())
 
 			container, err = docker.Container.Run.
-				WithCommand("bundle exec rackup -o 0.0.0.0").
+				WithCommand("bundle config && bundle exec rackup -o 0.0.0.0").
 				WithEnv(map[string]string{"PORT": "9292"}).
 				WithPublish("9292").
 				WithPublishAll().
@@ -74,6 +74,11 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 
 			Eventually(container).Should(BeAvailable())
 			Eventually(container).Should(Serve(ContainSubstring("Hello world!")).OnPort(9292))
+
+			logs, err := docker.Container.Logs.Execute(container.ID)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(logs.String()).To(ContainSubstring("retry"))
+			Expect(logs.String()).To(ContainSubstring("Set for the current user (/layers/paketo-buildpacks_bundle-install/gems/config): 5"))
 		})
 
 		context("the version of bundler in the Gemfile.lock is 1.17.x", func() {

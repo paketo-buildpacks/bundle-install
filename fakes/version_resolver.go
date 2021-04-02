@@ -7,8 +7,8 @@ type VersionResolver struct {
 		sync.Mutex
 		CallCount int
 		Receives  struct {
-			String_1 string
-			String_2 string
+			Left  string
+			Right string
 		}
 		Returns struct {
 			Bool  bool
@@ -31,8 +31,8 @@ func (f *VersionResolver) CompareMajorMinor(param1 string, param2 string) (bool,
 	f.CompareMajorMinorCall.Lock()
 	defer f.CompareMajorMinorCall.Unlock()
 	f.CompareMajorMinorCall.CallCount++
-	f.CompareMajorMinorCall.Receives.String_1 = param1
-	f.CompareMajorMinorCall.Receives.String_2 = param2
+	f.CompareMajorMinorCall.Receives.Left = param1
+	f.CompareMajorMinorCall.Receives.Right = param2
 	if f.CompareMajorMinorCall.Stub != nil {
 		return f.CompareMajorMinorCall.Stub(param1, param2)
 	}
