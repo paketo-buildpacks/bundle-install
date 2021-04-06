@@ -1,10 +1,6 @@
 package fakes
 
-import (
-	"sync"
-
-	"github.com/paketo-buildpacks/packit"
-)
+import "sync"
 
 type InstallProcess struct {
 	ExecuteCall struct {
@@ -24,7 +20,8 @@ type InstallProcess struct {
 		sync.Mutex
 		CallCount int
 		Receives  struct {
-			Layer      packit.Layer
+			Metadata map[string]interface {
+			}
 			WorkingDir string
 		}
 		Returns struct {
@@ -33,7 +30,8 @@ type InstallProcess struct {
 			RubyVersion string
 			Err         error
 		}
-		Stub func(packit.Layer, string) (bool, string, string, error)
+		Stub func(map[string]interface {
+		}, string) (bool, string, string, error)
 	}
 }
 
@@ -49,11 +47,12 @@ func (f *InstallProcess) Execute(param1 string, param2 string, param3 map[string
 	}
 	return f.ExecuteCall.Returns.Error
 }
-func (f *InstallProcess) ShouldRun(param1 packit.Layer, param2 string) (bool, string, string, error) {
+func (f *InstallProcess) ShouldRun(param1 map[string]interface {
+}, param2 string) (bool, string, string, error) {
 	f.ShouldRunCall.Lock()
 	defer f.ShouldRunCall.Unlock()
 	f.ShouldRunCall.CallCount++
-	f.ShouldRunCall.Receives.Layer = param1
+	f.ShouldRunCall.Receives.Metadata = param1
 	f.ShouldRunCall.Receives.WorkingDir = param2
 	if f.ShouldRunCall.Stub != nil {
 		return f.ShouldRunCall.Stub(param1, param2)

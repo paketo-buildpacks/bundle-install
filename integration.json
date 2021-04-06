@@ -1,5 +1,4 @@
 {
-  "build-plan": "github.com/paketo-community/build-plan",
   "bundler": "github.com/paketo-buildpacks/bundler",
   "mri": "github.com/paketo-buildpacks/mri"
 }

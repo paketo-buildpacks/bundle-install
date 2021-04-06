@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -e
+set -u
+set -o pipefail
+
+function main() {
+  echo "Paketo Bundle List Buildpack"
+  bundle list | sed 's/^/  /'
+}
+
+main "${@:-}"

@@ -7,20 +7,30 @@ import (
 	"github.com/paketo-buildpacks/packit/scribe"
 )
 
+// LogEmitter prints formatted log output using the facilities of a
+// scribe.Logger.
 type LogEmitter struct {
-	// Logger is embedded and therefore delegates all of its functions to the
-	// LogEmitter.
 	scribe.Logger
 }
 
+// NewLogEmitter initializes an instance of a LogEmitter.
 func NewLogEmitter(output io.Writer) LogEmitter {
 	return LogEmitter{
 		Logger: scribe.NewLogger(output),
 	}
 }
 
-func (l LogEmitter) Environment(env packit.Environment) {
-	l.Process("Configuring environment")
-	l.Subprocess("%s", scribe.NewFormattedMapFromEnvironment(env))
-	l.Break()
+// Environment prints the environment variable settings for the given layer.
+func (l LogEmitter) Environment(layer packit.Layer) {
+	if len(layer.BuildEnv) > 0 {
+		l.Process("Configuring build environment")
+		l.Subprocess("%s", scribe.NewFormattedMapFromEnvironment(layer.BuildEnv))
+		l.Break()
+	}
+
+	if len(layer.LaunchEnv) > 0 {
+		l.Process("Configuring launch environment")
+		l.Subprocess("%s", scribe.NewFormattedMapFromEnvironment(layer.LaunchEnv))
+		l.Break()
+	}
 }

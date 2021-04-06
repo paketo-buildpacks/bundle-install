@@ -9,16 +9,20 @@ import (
 	"github.com/paketo-buildpacks/packit/pexec"
 )
 
+// RubyVersionResolver identifies and compares versions of Ruby used in the
+// build environment.
 type RubyVersionResolver struct {
 	executable Executable
 }
 
+// NewRubyVersionResolver initializes an instance of RubyVersionResolver.
 func NewRubyVersionResolver(executable Executable) RubyVersionResolver {
 	return RubyVersionResolver{
 		executable: executable,
 	}
 }
 
+// Lookup returns the version of Ruby installed in the build environment.
 func (r RubyVersionResolver) Lookup() (string, error) {
 	buffer := bytes.NewBuffer(nil)
 	err := r.executable.Execute(pexec.Execution{
@@ -40,6 +44,8 @@ func (r RubyVersionResolver) Lookup() (string, error) {
 	return versions[1], nil
 }
 
+// CompareMajorMinor returns true if the current major or minor version of Ruby
+// has changed from the cached version.
 func (r RubyVersionResolver) CompareMajorMinor(cachedVersion, newVersion string) (bool, error) {
 	cachedSemverVersion, err := semver.NewVersion(cachedVersion)
 	if err != nil {

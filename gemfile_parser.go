@@ -7,12 +7,16 @@ import (
 	"regexp"
 )
 
+// GemfileParser parses the Gemfile to determine the version of Ruby used by
+// the application.
 type GemfileParser struct{}
 
+// NewGemfileParser initializes an instance of GemfileParser.
 func NewGemfileParser() GemfileParser {
 	return GemfileParser{}
 }
 
+// ParseVersion scans the Gemfile for a Ruby version specification.
 func (p GemfileParser) ParseVersion(path string) (string, error) {
 	file, err := os.Open(path)
 	if err != nil {
