@@ -29,7 +29,7 @@ var settings struct {
 			Online  string
 			Offline string
 		}
-		BuildPlan struct {
+		BundleList struct {
 			Online string
 		}
 	}
@@ -40,9 +40,8 @@ var settings struct {
 	}
 
 	Config struct {
-		Bundler   string `json:"bundler"`
-		MRI       string `json:"mri"`
-		BuildPlan string `json:"build-plan"`
+		Bundler string `json:"bundler"`
+		MRI     string `json:"mri"`
 	}
 }
 
@@ -96,16 +95,13 @@ func TestIntegration(t *testing.T) {
 		Execute(settings.Config.MRI)
 	Expect(err).NotTo(HaveOccurred())
 
-	settings.Buildpacks.BuildPlan.Online, err = buildpackStore.Get.
-		Execute(settings.Config.BuildPlan)
-	Expect(err).NotTo(HaveOccurred())
+	settings.Buildpacks.BundleList.Online = filepath.Join(root, "integration", "testdata", "bundle-list-buildpack")
 
 	SetDefaultEventuallyTimeout(30 * time.Second)
 
 	suite := spec.New("Integration", spec.Report(report.Terminal{}), spec.Parallel())
-	suite("SimpleApp", testSimpleApp)
-	suite("OfflineApp", testOffline)
-	suite("Logging", testLogging)
 	suite("Layer Reuse", testLayerReuse)
+	suite("OfflineApp", testOffline)
+	suite("SimpleApp", testSimpleApp)
 	suite.Run(t)
 }

@@ -1,8 +1,10 @@
 package integration_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/paketo-buildpacks/occam"
@@ -53,19 +55,65 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			source, err = occam.Source(filepath.Join("testdata", "simple_app"))
 			Expect(err).NotTo(HaveOccurred())
 
-			image, _, err = pack.WithVerbose().Build.
+			var logs fmt.Stringer
+			image, logs, err = pack.WithVerbose().Build.
 				WithBuildpacks(
 					settings.Buildpacks.MRI.Online,
 					settings.Buildpacks.Bundler.Online,
 					settings.Buildpacks.BundleInstall.Online,
-					settings.Buildpacks.BuildPlan.Online,
+					settings.Buildpacks.BundleList.Online,
 				).
 				WithPullPolicy("never").
 				Execute(name, source)
 			Expect(err).NotTo(HaveOccurred())
 
+			Expect(logs).To(ContainLines(
+				MatchRegexp(fmt.Sprintf(`%s \d+\.\d+\.\d+`, settings.Buildpack.Name)),
+				"  Executing build environment install process",
+				"    Running 'bundle config --global clean true'",
+				MatchRegexp(fmt.Sprintf("    Running 'bundle config --global path /layers/%s/build-gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+				"    Running 'bundle config --global cache_path --parseable'",
+				"    Running 'bundle install'",
+				MatchRegexp(`      Completed in \d+\.?\d*`),
+				"",
+				"  Executing launch environment install process",
+				"    Running 'bundle config --global clean true'",
+				MatchRegexp(fmt.Sprintf("    Running 'bundle config --global path /layers/%s/launch-gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+				"    Running 'bundle config --global without development:test'",
+				"    Running 'bundle config --global cache_path --parseable'",
+				"    Running 'bundle install'",
+				MatchRegexp(`      Completed in \d+\.?\d*`),
+				"",
+				"  Configuring build environment",
+				MatchRegexp(fmt.Sprintf(`    BUNDLE_USER_CONFIG -> "/layers/%s/build-gems/config"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+				"",
+				"  Configuring launch environment",
+				MatchRegexp(fmt.Sprintf(`    BUNDLE_USER_CONFIG -> "/layers/%s/launch-gems/config"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+				"",
+			))
+
+			Expect(logs).To(ContainLines(
+				"Paketo Bundle List Buildpack",
+				"  Gems included by the bundle:",
+				MatchRegexp(`    \* coderay`),
+				MatchRegexp(`    \* diff-lcs`),
+				MatchRegexp(`    \* method_source`),
+				MatchRegexp(`    \* mustermann`),
+				MatchRegexp(`    \* pry`),
+				MatchRegexp(`    \* rack`),
+				MatchRegexp(`    \* rack-protection`),
+				MatchRegexp(`    \* rspec`),
+				MatchRegexp(`    \* rspec-core`),
+				MatchRegexp(`    \* rspec-expectations`),
+				MatchRegexp(`    \* rspec-mocks`),
+				MatchRegexp(`    \* rspec-support`),
+				MatchRegexp(`    \* ruby2_keywords`),
+				MatchRegexp(`    \* sinatra`),
+				MatchRegexp(`    \* tilt`),
+			))
+
 			container, err = docker.Container.Run.
-				WithCommand("bundle config && bundle exec rackup -o 0.0.0.0").
+				WithCommand("bundle config && bundle list && bundle exec rackup -o 0.0.0.0").
 				WithEnv(map[string]string{"PORT": "9292"}).
 				WithPublish("9292").
 				WithPublishAll().
@@ -75,10 +123,44 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			Eventually(container).Should(BeAvailable())
 			Eventually(container).Should(Serve(ContainSubstring("Hello world!")).OnPort(9292))
 
-			logs, err := docker.Container.Logs.Execute(container.ID)
+			logs, err = docker.Container.Logs.Execute(container.ID)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(logs.String()).To(ContainSubstring("retry"))
-			Expect(logs.String()).To(ContainSubstring("Set for the current user (/layers/paketo-buildpacks_bundle-install/gems/config): 5"))
+			Expect(logs).To(ContainLines(
+				"retry",
+				"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): 5",
+				"",
+				"clean",
+				`Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): "true"`,
+				"",
+				"path",
+				`Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): "/layers/paketo-buildpacks_bundle-install/launch-gems"`,
+				"",
+				"without",
+				"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): [:development, :test]",
+				"",
+				"user_config",
+				`Set via BUNDLE_USER_CONFIG: "/layers/paketo-buildpacks_bundle-install/launch-gems/config"`,
+			))
+
+			Expect(logs).To(ContainLines(
+				"Gems included by the bundle:",
+				MatchRegexp(`  \* mustermann`),
+				MatchRegexp(`  \* rack`),
+				MatchRegexp(`  \* rack-protection`),
+				MatchRegexp(`  \* ruby2_keywords`),
+				MatchRegexp(`  \* sinatra`),
+				MatchRegexp(`  \* tilt`),
+			))
+
+			Expect(logs).NotTo(ContainLines(MatchRegexp(`\* coderay`)))
+			Expect(logs).NotTo(ContainLines(MatchRegexp(`\* diff-lcs`)))
+			Expect(logs).NotTo(ContainLines(MatchRegexp(`\* method_source`)))
+			Expect(logs).NotTo(ContainLines(MatchRegexp(`\* pry`)))
+			Expect(logs).NotTo(ContainLines(MatchRegexp(`\* rspec`)))
+			Expect(logs).NotTo(ContainLines(MatchRegexp(`\* rspec-core`)))
+			Expect(logs).NotTo(ContainLines(MatchRegexp(`\* rspec-expectations`)))
+			Expect(logs).NotTo(ContainLines(MatchRegexp(`\* rspec-mocks`)))
+			Expect(logs).NotTo(ContainLines(MatchRegexp(`\* rspec-support`)))
 		})
 
 		context("the version of bundler in the Gemfile.lock is 1.17.x", func() {
@@ -87,19 +169,65 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 				source, err = occam.Source(filepath.Join("testdata", "bundler_version_1_17"))
 				Expect(err).NotTo(HaveOccurred())
 
-				image, _, err = pack.WithVerbose().Build.
+				var logs fmt.Stringer
+				image, logs, err = pack.WithVerbose().Build.
 					WithBuildpacks(
 						settings.Buildpacks.MRI.Online,
 						settings.Buildpacks.Bundler.Online,
 						settings.Buildpacks.BundleInstall.Online,
-						settings.Buildpacks.BuildPlan.Online,
+						settings.Buildpacks.BundleList.Online,
 					).
 					WithPullPolicy("never").
 					Execute(name, source)
 				Expect(err).NotTo(HaveOccurred())
+				Expect(logs).To(ContainLines(
+					MatchRegexp(fmt.Sprintf(`%s \d+\.\d+\.\d+`, settings.Buildpack.Name)),
+					"  Executing build environment install process",
+					"    Running 'bundle config --global clean true'",
+					MatchRegexp(fmt.Sprintf("    Running 'bundle config --global path /layers/%s/build-gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+					"    Running 'bundle config --global cache_path --parseable'",
+					"    Running 'bundle install'",
+					MatchRegexp(`      Completed in \d+\.?\d*`),
+					"",
+					"  Executing launch environment install process",
+					"    Running 'bundle config --global clean true'",
+					MatchRegexp(fmt.Sprintf("    Running 'bundle config --global path /layers/%s/launch-gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+					"    Running 'bundle config --global without development:test'",
+					"    Running 'bundle config --global cache_path --parseable'",
+					"    Running 'bundle install'",
+					MatchRegexp(`      Completed in \d+\.?\d*`),
+					"",
+					"  Configuring build environment",
+					MatchRegexp(fmt.Sprintf(`    BUNDLE_USER_CONFIG -> "/layers/%s/build-gems/config"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+					"",
+					"  Configuring launch environment",
+					MatchRegexp(fmt.Sprintf(`    BUNDLE_USER_CONFIG -> "/layers/%s/launch-gems/config"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+					"",
+				))
+
+				Expect(logs).To(ContainLines(
+					"Paketo Bundle List Buildpack",
+					"  Gems included by the bundle:",
+					MatchRegexp(`    \* bundler`),
+					MatchRegexp(`    \* coderay`),
+					MatchRegexp(`    \* diff-lcs`),
+					MatchRegexp(`    \* method_source`),
+					MatchRegexp(`    \* mustermann`),
+					MatchRegexp(`    \* pry`),
+					MatchRegexp(`    \* rack`),
+					MatchRegexp(`    \* rack-protection`),
+					MatchRegexp(`    \* rspec`),
+					MatchRegexp(`    \* rspec-core`),
+					MatchRegexp(`    \* rspec-expectations`),
+					MatchRegexp(`    \* rspec-mocks`),
+					MatchRegexp(`    \* rspec-support`),
+					MatchRegexp(`    \* ruby2_keywords`),
+					MatchRegexp(`    \* sinatra`),
+					MatchRegexp(`    \* tilt`),
+				))
 
 				container, err = docker.Container.Run.
-					WithCommand("bundle exec rackup -o 0.0.0.0").
+					WithCommand("bundle config && bundle list && bundle exec rackup -o 0.0.0.0").
 					WithEnv(map[string]string{"PORT": "9292"}).
 					WithPublish("9292").
 					WithPublishAll().
@@ -108,41 +236,36 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 
 				Eventually(container).Should(BeAvailable())
 				Eventually(container).Should(Serve(ContainSubstring("Hello world!")).OnPort(9292))
-			})
-		})
 
-		context("when the Gemfile contains development and test dependencies", func() {
-			it("does not install those dependencies", func() {
-				var err error
-				source, err = occam.Source(filepath.Join("testdata", "simple_app"))
+				logs, err = docker.Container.Logs.Execute(container.ID)
 				Expect(err).NotTo(HaveOccurred())
+				Expect(logs).To(ContainLines(
+					"retry",
+					"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): 5",
+					"",
+					"clean",
+					`Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): "true"`,
+					"",
+					"path",
+					`Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): "/layers/paketo-buildpacks_bundle-install/launch-gems"`,
+					"",
+					"without",
+					"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): [:development, :test]",
+					"",
+					"user_config",
+					`Set via BUNDLE_USER_CONFIG: "/layers/paketo-buildpacks_bundle-install/launch-gems/config"`,
+				))
 
-				image, _, err = pack.WithVerbose().Build.
-					WithBuildpacks(
-						settings.Buildpacks.MRI.Online,
-						settings.Buildpacks.Bundler.Online,
-						settings.Buildpacks.BundleInstall.Online,
-						settings.Buildpacks.BuildPlan.Online,
-					).
-					WithPullPolicy("never").
-					Execute(name, source)
-				Expect(err).NotTo(HaveOccurred())
-
-				container, err = docker.Container.Run.
-					WithCommand("bundle list && bundle exec rackup -o 0.0.0.0").
-					WithEnv(map[string]string{"PORT": "9292"}).
-					WithPublish("9292").
-					WithPublishAll().
-					Execute(image.ID)
-				Expect(err).NotTo(HaveOccurred())
-
-				Eventually(container).Should(BeAvailable())
-
-				logs, err := docker.Container.Logs.Execute(container.ID)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(logs.String()).To(ContainSubstring("sinatra"))
-				Expect(logs.String()).NotTo(ContainSubstring("rspec"))
-				Expect(logs.String()).NotTo(ContainSubstring("pry"))
+				Expect(logs).To(ContainLines(
+					"Gems included by the bundle:",
+					MatchRegexp(`  \* bundler`),
+					MatchRegexp(`  \* mustermann`),
+					MatchRegexp(`  \* rack`),
+					MatchRegexp(`  \* rack-protection`),
+					MatchRegexp(`  \* ruby2_keywords`),
+					MatchRegexp(`  \* sinatra`),
+					MatchRegexp(`  \* tilt`),
+				))
 			})
 		})
 	})

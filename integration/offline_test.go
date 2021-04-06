@@ -48,7 +48,6 @@ func testOffline(t *testing.T, context spec.G, it spec.S) {
 	})
 
 	context("when building a simple app offline", func() {
-
 		it("creates a working OCI image", func() {
 			var err error
 			source, err = occam.Source(filepath.Join("testdata", "offline_app"))
@@ -59,7 +58,7 @@ func testOffline(t *testing.T, context spec.G, it spec.S) {
 					settings.Buildpacks.MRI.Offline,
 					settings.Buildpacks.Bundler.Offline,
 					settings.Buildpacks.BundleInstall.Offline,
-					settings.Buildpacks.BuildPlan.Online,
+					settings.Buildpacks.BundleList.Online,
 				).
 				WithNetwork("none").
 				WithPullPolicy("never").
@@ -99,7 +98,7 @@ func testOffline(t *testing.T, context spec.G, it spec.S) {
 					settings.Buildpacks.MRI.Offline,
 					settings.Buildpacks.Bundler.Offline,
 					settings.Buildpacks.BundleInstall.Offline,
-					settings.Buildpacks.BuildPlan.Online,
+					settings.Buildpacks.BundleList.Online,
 				).
 				WithNetwork("none").
 				WithPullPolicy("never").

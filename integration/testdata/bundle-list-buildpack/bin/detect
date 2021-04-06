@@ -1,17 +1,37 @@
+#!/bin/bash
+
+set -e
+set -u
+set -o pipefail
+
+function main() {
+  local plan
+  plan="${2}"
+
+  cat <<-TOML > "${plan}"
 [[requires]]
   name = "gems"
 
   [requires.metadata]
+    build = true
     launch = true
 
 [[requires]]
   name = "bundler"
 
   [requires.metadata]
+    build = true
     launch = true
 
 [[requires]]
   name = "mri"
 
   [requires.metadata]
+    build = true
     launch = true
+TOML
+
+  exit 0
+}
+
+main "${@:-}"

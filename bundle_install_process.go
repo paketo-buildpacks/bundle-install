@@ -8,27 +8,33 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/paketo-buildpacks/packit"
 	"github.com/paketo-buildpacks/packit/fs"
 	"github.com/paketo-buildpacks/packit/pexec"
 )
 
 //go:generate faux --interface Executable --output fakes/executable.go
+//go:generate faux --interface VersionResolver --output fakes/version_resolver.go
+//go:generate faux --interface Calculator --output fakes/calculator.go
+
+// Executable defines the interface for executing an external process.
 type Executable interface {
 	Execute(pexec.Execution) error
 }
 
-//go:generate faux --interface VersionResolver --output fakes/version_resolver.go
+// VersionResolver defines the interface for looking up and comparing the
+// versions of Ruby installed in the environment.
 type VersionResolver interface {
 	Lookup() (version string, err error)
 	CompareMajorMinor(left string, right string) (bool, error)
 }
 
-//go:generate faux --interface Calculator --output fakes/calculator.go
+// Calculator defines the interface for calculating a checksum of the given set
+// of file paths.
 type Calculator interface {
 	Sum(paths ...string) (string, error)
 }
 
+// BundleInstallProcess performs the "bundle install" build process.
 type BundleInstallProcess struct {
 	executable      Executable
 	logger          LogEmitter
@@ -36,6 +42,7 @@ type BundleInstallProcess struct {
 	calculator      Calculator
 }
 
+// NewBundleInstallProcess initializes an instance of BundleInstallProcess.
 func NewBundleInstallProcess(executable Executable, logger LogEmitter, versionResolver VersionResolver, calculator Calculator) BundleInstallProcess {
 	return BundleInstallProcess{
 		executable:      executable,
@@ -55,13 +62,13 @@ func NewBundleInstallProcess(executable Executable, logger LogEmitter, versionRe
 // In addition to reporting if the install process should execute, this method
 // will return the current version of Ruby and the checksum of the Gemfile and
 // Gemfile.lock contents.
-func (ip BundleInstallProcess) ShouldRun(layer packit.Layer, workingDir string) (bool, string, string, error) {
+func (ip BundleInstallProcess) ShouldRun(metadata map[string]interface{}, workingDir string) (bool, string, string, error) {
 	rubyVersion, err := ip.versionResolver.Lookup()
 	if err != nil {
 		return false, "", "", err
 	}
 
-	cachedRubyVersion, ok := layer.Metadata["ruby_version"].(string)
+	cachedRubyVersion, ok := metadata["ruby_version"].(string)
 	rubyVersionMatch := true
 
 	if ok {
@@ -84,23 +91,58 @@ func (ip BundleInstallProcess) ShouldRun(layer packit.Layer, workingDir string) 
 		}
 	}
 
-	cachedSHA, ok := layer.Metadata["cache_sha"].(string)
+	cachedSHA, ok := metadata["cache_sha"].(string)
 	cacheMatch := ok && cachedSHA == sum
 	shouldRun := !cacheMatch || !rubyVersionMatch
 
 	return shouldRun, sum, rubyVersion, nil
 }
 
+// Execute will configure and install a set of gems into a layer location using
+// the Bundler CLI.
+//
+// First, to configure the Bundler environment, Execute will copy the local
+// Bundler configuration, if any, into the target layer path. The configuration
+// file created in the layer will become the defacto configuration file by
+// setting `BUNDLE_USER_CONFIG` in the local environment while executing the
+// subsequent Bundle CLI commands. The configuration will then be modifed with
+// any settings specific to the invocation of Execute.  These configurations
+// will override any settings previously applied in the local Bundle
+// configuration.
+//
+// Once fully configured, Execute will run "bundle install" as a child process.
+// During the execution of the "bundle install" process, Execute will have
+// configured the command to use any locally vendored cache, enabling offline
+// execution.
 func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[string]string) error {
 	localConfigPath := filepath.Join(workingDir, ".bundle", "config")
+	backupConfigPath := filepath.Join(workingDir, ".bundle", "config.bak")
 	globalConfigPath := filepath.Join(layerPath, "config")
+
+	err := os.RemoveAll(globalConfigPath)
+	if err != nil {
+		return err
+	}
+
 	if _, err := os.Stat(localConfigPath); err == nil {
 		err := os.MkdirAll(layerPath, os.ModePerm)
 		if err != nil {
 			return err
 		}
 
+		if _, err := os.Stat(backupConfigPath); err == nil {
+			err = fs.Copy(backupConfigPath, localConfigPath)
+			if err != nil {
+				return err
+			}
+		}
+
 		err = fs.Copy(localConfigPath, globalConfigPath)
+		if err != nil {
+			return err
+		}
+
+		err = fs.Copy(localConfigPath, backupConfigPath)
 		if err != nil {
 			return err
 		}
@@ -136,7 +178,7 @@ func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[
 
 	ip.logger.Subprocess("Running 'bundle %s'", strings.Join(args, " "))
 
-	err := ip.executable.Execute(pexec.Execution{
+	err = ip.executable.Execute(pexec.Execution{
 		Args:   args,
 		Stdout: buffer,
 		Stderr: buffer,

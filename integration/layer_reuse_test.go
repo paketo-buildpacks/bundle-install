@@ -75,10 +75,10 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 					settings.Buildpacks.MRI.Online,
 					settings.Buildpacks.Bundler.Online,
 					settings.Buildpacks.BundleInstall.Online,
-					settings.Buildpacks.BuildPlan.Online,
+					settings.Buildpacks.BundleList.Online,
 				)
 
-			firstImage, logs, err = build.Execute(name, source)
+			firstImage, _, err = build.Execute(name, source)
 			Expect(err).NotTo(HaveOccurred())
 
 			imageIDs[firstImage.ID] = struct{}{}
@@ -86,22 +86,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 			Expect(firstImage.Buildpacks).To(HaveLen(4))
 
 			Expect(firstImage.Buildpacks[2].Key).To(Equal(settings.Buildpack.ID))
-			Expect(firstImage.Buildpacks[2].Layers).To(HaveKey("gems"))
-
-			Expect(logs).To(ContainLines(
-				MatchRegexp(fmt.Sprintf(`%s \d+\.\d+\.\d+`, settings.Buildpack.Name)),
-				"  Executing build process",
-				"    Running 'bundle config --global clean true'",
-				MatchRegexp(fmt.Sprintf("    Running 'bundle config --global path /layers/%s/gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
-				"    Running 'bundle config --global without development:test'",
-				"    Running 'bundle config --global cache_path --parseable'",
-				"    Running 'bundle install'",
-				MatchRegexp(`      Completed in \d+\.?\d*`),
-				"",
-				"  Configuring environment",
-				MatchRegexp(fmt.Sprintf(`    BUNDLE_USER_CONFIG -> "/layers/%s/gems/config"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
-				"",
-			))
+			Expect(firstImage.Buildpacks[2].Layers).To(HaveKey("launch-gems"))
 
 			firstContainer, err = docker.Container.Run.
 				WithCommand("bundle exec rackup -o 0.0.0.0").
@@ -124,15 +109,17 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 			Expect(secondImage.Buildpacks).To(HaveLen(4))
 
 			Expect(secondImage.Buildpacks[2].Key).To(Equal(settings.Buildpack.ID))
-			Expect(secondImage.Buildpacks[2].Layers).To(HaveKey("gems"))
+			Expect(secondImage.Buildpacks[2].Layers).To(HaveKey("launch-gems"))
 
 			Expect(logs).To(ContainLines(
 				MatchRegexp(fmt.Sprintf(`%s \d+\.\d+\.\d+`, settings.Buildpack.Name)),
-				MatchRegexp(fmt.Sprintf("  Reusing cached layer /layers/%s/gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+				MatchRegexp(fmt.Sprintf("  Reusing cached layer /layers/%s/build-gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+				"",
+				MatchRegexp(fmt.Sprintf("  Reusing cached layer /layers/%s/launch-gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
 			))
 
 			secondContainer, err = docker.Container.Run.
-				WithCommand("bundle env && bundle exec rackup -o 0.0.0.0").
+				WithCommand("bundle list && bundle exec rackup -o 0.0.0.0").
 				WithEnv(map[string]string{"PORT": "9292"}).
 				WithPublish("9292").
 				WithPublishAll().
@@ -143,7 +130,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 
 			Eventually(secondContainer).Should(BeAvailable())
 
-			Expect(secondImage.Buildpacks[2].Layers["gems"].Metadata["built_at"]).To(Equal(firstImage.Buildpacks[2].Layers["gems"].Metadata["built_at"]))
+			Expect(secondImage.Buildpacks[2].Layers["launch-gems"].Metadata["built_at"]).To(Equal(firstImage.Buildpacks[2].Layers["launch-gems"].Metadata["built_at"]))
 		})
 	})
 
@@ -151,11 +138,10 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 		context("when the Gemfile.lock changes", func() {
 			it("rebuilds the layer", func() {
 				var (
-					err         error
-					logs        fmt.Stringer
-					firstImage  occam.Image
-					secondImage occam.Image
-
+					err             error
+					logs            fmt.Stringer
+					firstImage      occam.Image
+					secondImage     occam.Image
 					firstContainer  occam.Container
 					secondContainer occam.Container
 				)
@@ -169,10 +155,10 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 						settings.Buildpacks.MRI.Online,
 						settings.Buildpacks.Bundler.Online,
 						settings.Buildpacks.BundleInstall.Online,
-						settings.Buildpacks.BuildPlan.Online,
+						settings.Buildpacks.BundleList.Online,
 					)
 
-				firstImage, logs, err = build.Execute(name, source)
+				firstImage, _, err = build.Execute(name, source)
 				Expect(err).NotTo(HaveOccurred())
 
 				imageIDs[firstImage.ID] = struct{}{}
@@ -180,22 +166,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 				Expect(firstImage.Buildpacks).To(HaveLen(4))
 
 				Expect(firstImage.Buildpacks[2].Key).To(Equal(settings.Buildpack.ID))
-				Expect(firstImage.Buildpacks[2].Layers).To(HaveKey("gems"))
-
-				Expect(logs).To(ContainLines(
-					MatchRegexp(fmt.Sprintf(`%s \d+\.\d+\.\d+`, settings.Buildpack.Name)),
-					"  Executing build process",
-					"    Running 'bundle config --global clean true'",
-					MatchRegexp(fmt.Sprintf("    Running 'bundle config --global path /layers/%s/gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
-					"    Running 'bundle config --global without development:test'",
-					"    Running 'bundle config --global cache_path --parseable'",
-					"    Running 'bundle install'",
-					MatchRegexp(`      Completed in \d+\.?\d*`),
-					"",
-					"  Configuring environment",
-					MatchRegexp(fmt.Sprintf(`    BUNDLE_USER_CONFIG -> "/layers/%s/gems/config"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
-					"",
-				))
+				Expect(firstImage.Buildpacks[2].Layers).To(HaveKey("launch-gems"))
 
 				firstContainer, err = docker.Container.Run.
 					WithCommand("bundle exec rackup -o 0.0.0.0").
@@ -213,7 +184,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 				Expect(err).NotTo(HaveOccurred())
 
 				err = ioutil.WriteFile(filepath.Join(source, "Gemfile.lock"),
-					[]byte(string(contents)+"\nbreak checksum"), 0644)
+					[]byte(string(contents)+"\nbreak checksum"), 0600)
 				Expect(err).NotTo(HaveOccurred())
 
 				// Second pack build
@@ -225,9 +196,10 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 				Expect(secondImage.Buildpacks).To(HaveLen(4))
 
 				Expect(secondImage.Buildpacks[2].Key).To(Equal(settings.Buildpack.ID))
-				Expect(secondImage.Buildpacks[2].Layers).To(HaveKey("gems"))
+				Expect(secondImage.Buildpacks[2].Layers).To(HaveKey("launch-gems"))
 
-				Expect(logs.String()).NotTo(ContainSubstring(fmt.Sprintf("  Reusing cached layer /layers/%s/gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))))
+				Expect(logs.String()).NotTo(ContainSubstring(fmt.Sprintf("  Reusing cached layer /layers/%s/build-gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))))
+				Expect(logs.String()).NotTo(ContainSubstring(fmt.Sprintf("  Reusing cached layer /layers/%s/launch-gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))))
 
 				secondContainer, err = docker.Container.Run.
 					WithCommand("bundle exec rackup -o 0.0.0.0").
@@ -241,7 +213,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 
 				Eventually(secondContainer).Should(BeAvailable())
 
-				Expect(secondImage.Buildpacks[2].Layers["gems"].Metadata["built_at"]).NotTo(Equal(firstImage.Buildpacks[2].Layers["gems"].Metadata["built_at"]))
+				Expect(secondImage.Buildpacks[2].Layers["launch-gems"].Metadata["built_at"]).NotTo(Equal(firstImage.Buildpacks[2].Layers["launch-gems"].Metadata["built_at"]))
 			})
 		})
 
@@ -266,10 +238,10 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 						settings.Buildpacks.MRI.Online,
 						settings.Buildpacks.Bundler.Online,
 						settings.Buildpacks.BundleInstall.Online,
-						settings.Buildpacks.BuildPlan.Online,
+						settings.Buildpacks.BundleList.Online,
 					)
 
-				firstImage, logs, err = build.Execute(name, source)
+				firstImage, _, err = build.Execute(name, source)
 				Expect(err).NotTo(HaveOccurred())
 
 				imageIDs[firstImage.ID] = struct{}{}
@@ -277,22 +249,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 				Expect(firstImage.Buildpacks).To(HaveLen(4))
 
 				Expect(firstImage.Buildpacks[2].Key).To(Equal(settings.Buildpack.ID))
-				Expect(firstImage.Buildpacks[2].Layers).To(HaveKey("gems"))
-
-				Expect(logs).To(ContainLines(
-					MatchRegexp(fmt.Sprintf(`%s \d+\.\d+\.\d+`, settings.Buildpack.Name)),
-					"  Executing build process",
-					"    Running 'bundle config --global clean true'",
-					MatchRegexp(fmt.Sprintf("    Running 'bundle config --global path /layers/%s/gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
-					"    Running 'bundle config --global without development:test'",
-					"    Running 'bundle config --global cache_path --parseable'",
-					"    Running 'bundle install'",
-					MatchRegexp(`      Completed in \d+\.?\d*`),
-					"",
-					"  Configuring environment",
-					MatchRegexp(fmt.Sprintf(`    BUNDLE_USER_CONFIG -> "/layers/%s/gems/config"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
-					"",
-				))
+				Expect(firstImage.Buildpacks[2].Layers).To(HaveKey("launch-gems"))
 
 				firstContainer, err = docker.Container.Run.
 					WithCommand("bundle exec rackup -o 0.0.0.0").
@@ -313,7 +270,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 					[]byte(strings.ReplaceAll(string(contents),
 						`gem 'sinatra', '~>2.1.0'`,
 						`gem 'sinatra', '~>2.0.8'`,
-					)), 0644)
+					)), 0600)
 				Expect(err).NotTo(HaveOccurred())
 
 				// Second pack build
@@ -325,10 +282,12 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 				Expect(secondImage.Buildpacks).To(HaveLen(4))
 
 				Expect(secondImage.Buildpacks[2].Key).To(Equal(settings.Buildpack.ID))
-				Expect(secondImage.Buildpacks[2].Layers).To(HaveKey("gems"))
+				Expect(secondImage.Buildpacks[2].Layers).To(HaveKey("launch-gems"))
 
-				Expect(logs.String()).To(ContainSubstring("  Executing build process"))
-				Expect(logs.String()).NotTo(ContainSubstring(fmt.Sprintf("  Reusing cached layer /layers/%s/gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))))
+				Expect(logs.String()).To(ContainSubstring("  Executing launch environment install process"))
+				Expect(logs.String()).To(ContainSubstring("  Executing build environment install process"))
+				Expect(logs.String()).NotTo(ContainSubstring(fmt.Sprintf("  Reusing cached layer /layers/%s/build-gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))))
+				Expect(logs.String()).NotTo(ContainSubstring(fmt.Sprintf("  Reusing cached layer /layers/%s/launch-gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))))
 
 				secondContainer, err = docker.Container.Run.
 					WithCommand("bundle exec rackup -o 0.0.0.0").
@@ -342,7 +301,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 
 				Eventually(secondContainer).Should(BeAvailable())
 
-				Expect(secondImage.Buildpacks[2].Layers["gems"].Metadata["built_at"]).NotTo(Equal(firstImage.Buildpacks[2].Layers["gems"].Metadata["built_at"]))
+				Expect(secondImage.Buildpacks[2].Layers["launch-gems"].Metadata["built_at"]).NotTo(Equal(firstImage.Buildpacks[2].Layers["launch-gems"].Metadata["built_at"]))
 			})
 		})
 	})

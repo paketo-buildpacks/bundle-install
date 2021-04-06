@@ -9,6 +9,7 @@ import (
 	"github.com/sclevine/spec"
 
 	. "github.com/onsi/gomega"
+	. "github.com/paketo-buildpacks/occam/matchers"
 )
 
 func testLogEmitter(t *testing.T, context spec.G, it spec.S) {
@@ -26,12 +27,23 @@ func testLogEmitter(t *testing.T, context spec.G, it spec.S) {
 
 	context("Environment", func() {
 		it("prints details about the environment", func() {
-			emitter.Environment(packit.Environment{
-				"BUNDLE_USER_CONFIG.default": "/some/path",
+			emitter.Environment(packit.Layer{
+				BuildEnv: packit.Environment{
+					"BUNDLE_USER_CONFIG.default": "/some/path",
+				},
+				LaunchEnv: packit.Environment{
+					"BUNDLE_USER_CONFIG.default": "/other/path",
+				},
 			})
 
-			Expect(buffer.String()).To(ContainSubstring("  Configuring environment"))
-			Expect(buffer.String()).To(ContainSubstring("    BUNDLE_USER_CONFIG -> \"/some/path\""))
+			Expect(buffer).To(ContainLines(
+				"  Configuring build environment",
+				`    BUNDLE_USER_CONFIG -> "/some/path"`,
+				"",
+				"  Configuring launch environment",
+				`    BUNDLE_USER_CONFIG -> "/other/path"`,
+				"",
+			))
 		})
 	})
 }

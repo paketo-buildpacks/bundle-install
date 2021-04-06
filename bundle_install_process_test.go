@@ -12,7 +12,6 @@ import (
 
 	bundleinstall "github.com/paketo-buildpacks/bundle-install"
 	"github.com/paketo-buildpacks/bundle-install/fakes"
-	"github.com/paketo-buildpacks/packit"
 	"github.com/paketo-buildpacks/packit/pexec"
 	"github.com/sclevine/spec"
 
@@ -64,17 +63,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 	})
 
 	context("ShouldRun", func() {
-		var layer packit.Layer
-
 		it.Before(func() {
-			layer = packit.Layer{
-				Path: layerPath,
-				Metadata: map[string]interface{}{
-					"cache_sha":    "some-checksum",
-					"ruby_version": "1.2.3",
-				},
-			}
-
 			versionResolver.LookupCall.Returns.Version = "2.3.4"
 			versionResolver.CompareMajorMinorCall.Returns.Bool = true
 
@@ -84,7 +73,10 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 		})
 
 		it("indicates that the install process should run", func() {
-			ok, checksum, rubyVersion, err := installProcess.ShouldRun(layer, workingDir)
+			ok, checksum, rubyVersion, err := installProcess.ShouldRun(map[string]interface{}{
+				"cache_sha":    "some-checksum",
+				"ruby_version": "1.2.3",
+			}, workingDir)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(ok).To(BeTrue())
 			Expect(checksum).To(Equal("other-checksum"))
@@ -109,7 +101,10 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 			})
 
 			it("indicates that the install process should run", func() {
-				ok, checksum, rubyVersion, err := installProcess.ShouldRun(layer, workingDir)
+				ok, checksum, rubyVersion, err := installProcess.ShouldRun(map[string]interface{}{
+					"cache_sha":    "some-checksum",
+					"ruby_version": "1.2.3",
+				}, workingDir)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ok).To(BeTrue())
 				Expect(checksum).To(Equal("some-checksum"))
@@ -126,7 +121,10 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 			})
 
 			it("indicates that the install process should run", func() {
-				ok, checksum, rubyVersion, err := installProcess.ShouldRun(layer, workingDir)
+				ok, checksum, rubyVersion, err := installProcess.ShouldRun(map[string]interface{}{
+					"cache_sha":    "some-checksum",
+					"ruby_version": "1.2.3",
+				}, workingDir)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ok).To(BeTrue())
 				Expect(checksum).To(Equal("other-checksum"))
@@ -143,7 +141,10 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 			})
 
 			it("indicates that the install process should not run", func() {
-				ok, checksum, rubyVersion, err := installProcess.ShouldRun(layer, workingDir)
+				ok, checksum, rubyVersion, err := installProcess.ShouldRun(map[string]interface{}{
+					"cache_sha":    "some-checksum",
+					"ruby_version": "1.2.3",
+				}, workingDir)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ok).To(BeFalse())
 				Expect(checksum).To(Equal("some-checksum"))
@@ -158,7 +159,10 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				})
 
 				it("returns an error", func() {
-					_, _, _, err := installProcess.ShouldRun(layer, workingDir)
+					_, _, _, err := installProcess.ShouldRun(map[string]interface{}{
+						"cache_sha":    "some-checksum",
+						"ruby_version": "1.2.3",
+					}, workingDir)
 					Expect(err).To(MatchError("failed to lookup ruby version"))
 				})
 			})
@@ -169,7 +173,10 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				})
 
 				it("returns an error", func() {
-					_, _, _, err := installProcess.ShouldRun(layer, workingDir)
+					_, _, _, err := installProcess.ShouldRun(map[string]interface{}{
+						"cache_sha":    "some-checksum",
+						"ruby_version": "1.2.3",
+					}, workingDir)
 					Expect(err).To(MatchError("failed to compare ruby version"))
 				})
 			})
@@ -184,7 +191,10 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				})
 
 				it("returns an error", func() {
-					_, _, _, err := installProcess.ShouldRun(layer, workingDir)
+					_, _, _, err := installProcess.ShouldRun(map[string]interface{}{
+						"cache_sha":    "some-checksum",
+						"ruby_version": "1.2.3",
+					}, workingDir)
 					Expect(err).To(MatchError(ContainSubstring("permission denied")))
 				})
 			})
@@ -199,7 +209,10 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				})
 
 				it("returns an error", func() {
-					_, _, _, err := installProcess.ShouldRun(layer, workingDir)
+					_, _, _, err := installProcess.ShouldRun(map[string]interface{}{
+						"cache_sha":    "some-checksum",
+						"ruby_version": "1.2.3",
+					}, workingDir)
 					Expect(err).To(MatchError("failed to calculate checksum"))
 				})
 			})
@@ -285,6 +298,42 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				contents, err := os.ReadFile(filepath.Join(layerPath, "config"))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(string(contents)).To(Equal("some-bundle-config"))
+			})
+
+			it("makes a backup of that local config", func() {
+				err := installProcess.Execute(workingDir, layerPath, nil)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(executions).To(HaveLen(2))
+				Expect(executions[0].Args).To(Equal([]string{"config", "--global", "cache_path", "--parseable"}))
+				Expect(executions[1].Args).To(Equal([]string{"install"}))
+
+				contents, err := os.ReadFile(filepath.Join(workingDir, ".bundle", "config.bak"))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(string(contents)).To(Equal("some-bundle-config"))
+			})
+
+			context("when there is also a backup of the config", func() {
+				it.Before(func() {
+					Expect(os.WriteFile(filepath.Join(workingDir, ".bundle", "config.bak"), []byte("other-bundle-config"), 0600)).To(Succeed())
+				})
+
+				it("replaces the local config with the backup", func() {
+					err := installProcess.Execute(workingDir, layerPath, nil)
+					Expect(err).NotTo(HaveOccurred())
+
+					Expect(executions).To(HaveLen(2))
+					Expect(executions[0].Args).To(Equal([]string{"config", "--global", "cache_path", "--parseable"}))
+					Expect(executions[1].Args).To(Equal([]string{"install"}))
+
+					contents, err := os.ReadFile(filepath.Join(layerPath, "config"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(string(contents)).To(Equal("other-bundle-config"))
+
+					contents, err = os.ReadFile(filepath.Join(workingDir, ".bundle", "config"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(string(contents)).To(Equal("other-bundle-config"))
+				})
 			})
 		})
 
