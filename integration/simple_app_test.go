@@ -126,20 +126,20 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			logs, err = docker.Container.Logs.Execute(container.ID)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(logs).To(ContainLines(
-				"retry",
-				"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): 5",
-				"",
 				"clean",
-				`Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): "true"`,
+				"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): true",
 				"",
 				"path",
 				`Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): "/layers/paketo-buildpacks_bundle-install/launch-gems"`,
 				"",
-				"without",
-				"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): [:development, :test]",
+				"retry",
+				"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): 5",
 				"",
 				"user_config",
 				`Set via BUNDLE_USER_CONFIG: "/layers/paketo-buildpacks_bundle-install/launch-gems/config"`,
+				"",
+				"without",
+				"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): [:development, :test]",
 			))
 
 			Expect(logs).To(ContainLines(
