@@ -1,9 +1,15 @@
 api = "0.6"
 
 [buildpack]
+  description = "A buildpack for installing app dependencies via `bundle`"
   homepage = "https://github.com/paketo-buildpacks/bundle-install"
   id = "paketo-buildpacks/bundle-install"
+  keywords = ["ruby", "bundler"]
   name = "Paketo Bundle Install Buildpack"
+
+  [[buildpack.licenses]]
+    type = "Apache-2.0"
+    uri = "https://github.com/paketo-buildpacks/bundle-install/blob/main/LICENSE"
 
 [metadata]
   include-files = ["bin/build", "bin/detect", "bin/run", "buildpack.toml"]
