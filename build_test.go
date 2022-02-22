@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,8 +11,9 @@ import (
 
 	bundleinstall "github.com/paketo-buildpacks/bundle-install"
 	"github.com/paketo-buildpacks/bundle-install/fakes"
-	"github.com/paketo-buildpacks/packit"
-	"github.com/paketo-buildpacks/packit/chronos"
+	"github.com/paketo-buildpacks/packit/v2"
+	"github.com/paketo-buildpacks/packit/v2/chronos"
+	"github.com/paketo-buildpacks/packit/v2/scribe"
 	"github.com/sclevine/spec"
 
 	. "github.com/onsi/gomega"
@@ -39,10 +39,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 	it.Before(func() {
 		var err error
-		layersDir, err = ioutil.TempDir("", "layers")
+		layersDir, err = os.MkdirTemp("", "layers")
 		Expect(err).NotTo(HaveOccurred())
 
-		workingDir, err = ioutil.TempDir("", "working-dir")
+		workingDir, err = os.MkdirTemp("", "working-dir")
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(os.Mkdir(filepath.Join(workingDir, ".bundle"), os.ModePerm)).To(Succeed())
@@ -55,7 +55,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		installProcess.ShouldRunCall.Returns.RubyVersion = "some-version"
 
 		buffer = bytes.NewBuffer(nil)
-		logEmitter := bundleinstall.NewLogEmitter(buffer)
+		logEmitter := scribe.NewEmitter(buffer)
 
 		timeStamp = time.Now()
 		clock = chronos.NewClock(func() time.Time { return timeStamp })
@@ -312,7 +312,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 			installProcess.ShouldRunCall.Returns.Should = false
 
-			err := ioutil.WriteFile(filepath.Join(layersDir, "build-gems.toml"), []byte(fmt.Sprintf(`
+			err := os.WriteFile(filepath.Join(layersDir, "build-gems.toml"), []byte(fmt.Sprintf(`
 build = true
 cache = true
 
@@ -323,7 +323,7 @@ cache = true
 `, timeStamp.Format(time.RFC3339Nano))), 0600)
 			Expect(err).NotTo(HaveOccurred())
 
-			err = ioutil.WriteFile(filepath.Join(layersDir, "launch-gems.toml"), []byte(fmt.Sprintf(`
+			err = os.WriteFile(filepath.Join(layersDir, "launch-gems.toml"), []byte(fmt.Sprintf(`
 launch = true
 
 [metadata]
