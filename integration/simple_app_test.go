@@ -56,27 +56,50 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			Expect(err).NotTo(HaveOccurred())
 
 			var logs fmt.Stringer
-			image, logs, err = pack.WithVerbose().Build.
+			image, logs, err = pack.Build.
 				WithBuildpacks(
 					settings.Buildpacks.MRI.Online,
 					settings.Buildpacks.Bundler.Online,
 					settings.Buildpacks.BundleInstall.Online,
 					settings.Buildpacks.BundleList.Online,
 				).
+				WithEnv(map[string]string{"BP_LOG_LEVEL": "DEBUG"}).
 				WithPullPolicy("never").
 				Execute(name, source)
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(logs).To(ContainLines(
 				MatchRegexp(fmt.Sprintf(`%s \d+\.\d+\.\d+`, settings.Buildpack.Name)),
+				"  Getting the layer associated with build-gems",
+				"    /layers/paketo-buildpacks_bundle-install/build-gems",
+				"",
+				"  Checking if the build environment install process should run",
+				"",
 				"  Executing build environment install process",
+				"    Setting up bundle install config paths:",
+				"      Local config path: /workspace/.bundle/config",
+				"      Backup config path: /workspace/.bundle/config.bak",
+				MatchRegexp(fmt.Sprintf(`      Global config path: /layers/%s/build-gems/config`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+				"    Adding global config path to $BUNDLE_USER_CONFIG",
+				"",
 				"    Running 'bundle config --global clean true'",
 				MatchRegexp(fmt.Sprintf("    Running 'bundle config --global path /layers/%s/build-gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
 				"    Running 'bundle config --global cache_path --parseable'",
 				"    Running 'bundle install'",
 				MatchRegexp(`      Completed in \d+\.?\d*`),
 				"",
+				"  Getting the layer associated with launch-gems",
+				"    /layers/paketo-buildpacks_bundle-install/launch-gems",
+				"",
+				"  Checking if the launch environment install process should run",
+				"",
 				"  Executing launch environment install process",
+				"    Setting up bundle install config paths:",
+				"      Local config path: /workspace/.bundle/config",
+				"      Backup config path: /workspace/.bundle/config.bak",
+				MatchRegexp(fmt.Sprintf(`      Global config path: /layers/%s/launch-gems/config`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+				"    Adding global config path to $BUNDLE_USER_CONFIG",
+				"",
 				"    Running 'bundle config --global clean true'",
 				MatchRegexp(fmt.Sprintf("    Running 'bundle config --global path /layers/%s/launch-gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
 				"    Running 'bundle config --global without development:test'",
@@ -89,6 +112,9 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 				"",
 				"  Configuring launch environment",
 				MatchRegexp(fmt.Sprintf(`    BUNDLE_USER_CONFIG -> "/layers/%s/launch-gems/config"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+				"",
+				"  Cleaning up /workspace/.bundle/config",
+				"  Cleaning up /workspace/.bundle/config.bak",
 				"",
 			))
 

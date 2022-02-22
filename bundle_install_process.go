@@ -116,9 +116,15 @@ func (ip BundleInstallProcess) ShouldRun(metadata map[string]interface{}, workin
 // configured the command to use any locally vendored cache, enabling offline
 // execution.
 func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[string]string) error {
+	ip.logger.Debug.Subprocess("Setting up bundle install config paths:")
+
 	localConfigPath := filepath.Join(workingDir, ".bundle", "config")
 	backupConfigPath := filepath.Join(workingDir, ".bundle", "config.bak")
 	globalConfigPath := filepath.Join(layerPath, "config")
+
+	ip.logger.Debug.Subprocess("  Local config path: %s", localConfigPath)
+	ip.logger.Debug.Subprocess("  Backup config path: %s", backupConfigPath)
+	ip.logger.Debug.Subprocess("  Global config path: %s", globalConfigPath)
 
 	err := os.RemoveAll(globalConfigPath)
 	if err != nil {
@@ -149,6 +155,8 @@ func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[
 		}
 	}
 
+	ip.logger.Debug.Subprocess("Adding global config path to $BUNDLE_USER_CONFIG")
+	ip.logger.Debug.Break()
 	env := append(os.Environ(), fmt.Sprintf("BUNDLE_USER_CONFIG=%s", globalConfigPath))
 
 	var keys []string
