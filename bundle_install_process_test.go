@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,7 +11,8 @@ import (
 
 	bundleinstall "github.com/paketo-buildpacks/bundle-install"
 	"github.com/paketo-buildpacks/bundle-install/fakes"
-	"github.com/paketo-buildpacks/packit/pexec"
+	"github.com/paketo-buildpacks/packit/v2/pexec"
+	"github.com/paketo-buildpacks/packit/v2/scribe"
 	"github.com/sclevine/spec"
 
 	. "github.com/onsi/gomega"
@@ -34,10 +34,10 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 
 	it.Before(func() {
 		var err error
-		workingDir, err = ioutil.TempDir("", "working-dir")
+		workingDir, err = os.MkdirTemp("", "working-dir")
 		Expect(err).NotTo(HaveOccurred())
 
-		layerPath, err = ioutil.TempDir("", "layer")
+		layerPath, err = os.MkdirTemp("", "layer")
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(os.RemoveAll(layerPath)).To(Succeed())
@@ -50,7 +50,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 			return nil
 		}
 
-		logEmitter := bundleinstall.NewLogEmitter(bytes.NewBuffer(nil))
+		logEmitter := scribe.NewEmitter(bytes.NewBuffer(nil))
 		versionResolver = &fakes.VersionResolver{}
 		calculator = &fakes.Calculator{}
 

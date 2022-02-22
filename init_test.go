@@ -13,7 +13,6 @@ func TestUnitBundleInstall(t *testing.T) {
 	suite("BundleInstallProcess", testBundleInstallProcess)
 	suite("Detect", testDetect)
 	suite("GemfileParser", testGemfileParser)
-	suite("LogEmitter", testLogEmitter)
 	suite("RubyVersionResolver", testRubyVersionResolver)
 	suite.Run(t)
 }
