@@ -5,9 +5,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/paketo-buildpacks/packit"
-	"github.com/paketo-buildpacks/packit/chronos"
-	"github.com/paketo-buildpacks/packit/fs"
+	"github.com/paketo-buildpacks/packit/v2"
+	"github.com/paketo-buildpacks/packit/v2/chronos"
+	"github.com/paketo-buildpacks/packit/v2/fs"
+	"github.com/paketo-buildpacks/packit/v2/scribe"
 )
 
 //go:generate faux --interface InstallProcess --output fakes/install_process.go
@@ -62,7 +63,7 @@ type EntryResolver interface {
 // configuration from the global location, which will be configured to point to
 // a file that is maintained in each of the build and launch layers
 // respectively.
-func Build(installProcess InstallProcess, logger LogEmitter, clock chronos.Clock, entries EntryResolver) packit.BuildFunc {
+func Build(installProcess InstallProcess, logger scribe.Emitter, clock chronos.Clock, entries EntryResolver) packit.BuildFunc {
 	return func(context packit.BuildContext) (packit.BuildResult, error) {
 		logger.Title("%s %s", context.BuildpackInfo.Name, context.BuildpackInfo.Version)
 
@@ -171,7 +172,7 @@ func Build(installProcess InstallProcess, logger LogEmitter, clock chronos.Clock
 		}
 
 		for _, layer := range layers {
-			logger.Environment(layer)
+			logger.EnvironmentVariables(layer)
 		}
 
 		err := os.RemoveAll(filepath.Join(context.WorkingDir, ".bundle", "config"))

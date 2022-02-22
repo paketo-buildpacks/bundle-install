@@ -8,8 +8,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/paketo-buildpacks/packit/fs"
-	"github.com/paketo-buildpacks/packit/pexec"
+	"github.com/paketo-buildpacks/packit/v2/fs"
+	"github.com/paketo-buildpacks/packit/v2/pexec"
+	"github.com/paketo-buildpacks/packit/v2/scribe"
 )
 
 //go:generate faux --interface Executable --output fakes/executable.go
@@ -37,13 +38,13 @@ type Calculator interface {
 // BundleInstallProcess performs the "bundle install" build process.
 type BundleInstallProcess struct {
 	executable      Executable
-	logger          LogEmitter
+	logger          scribe.Emitter
 	versionResolver VersionResolver
 	calculator      Calculator
 }
 
 // NewBundleInstallProcess initializes an instance of BundleInstallProcess.
-func NewBundleInstallProcess(executable Executable, logger LogEmitter, versionResolver VersionResolver, calculator Calculator) BundleInstallProcess {
+func NewBundleInstallProcess(executable Executable, logger scribe.Emitter, versionResolver VersionResolver, calculator Calculator) BundleInstallProcess {
 	return BundleInstallProcess{
 		executable:      executable,
 		logger:          logger,
