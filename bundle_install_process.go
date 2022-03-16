@@ -116,9 +116,15 @@ func (ip BundleInstallProcess) ShouldRun(metadata map[string]interface{}, workin
 // configured the command to use any locally vendored cache, enabling offline
 // execution.
 func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[string]string) error {
+	ip.logger.Debug.Subprocess("Setting up bundle install config paths:")
+
 	localConfigPath := filepath.Join(workingDir, ".bundle", "config")
 	backupConfigPath := filepath.Join(workingDir, ".bundle", "config.bak")
 	globalConfigPath := filepath.Join(layerPath, "config")
+
+	ip.logger.Debug.Subprocess("  Local config path: %s", localConfigPath)
+	ip.logger.Debug.Subprocess("  Backup config path: %s", backupConfigPath)
+	ip.logger.Debug.Subprocess("  Global config path: %s", globalConfigPath)
 
 	err := os.RemoveAll(globalConfigPath)
 	if err != nil {
@@ -149,6 +155,8 @@ func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[
 		}
 	}
 
+	ip.logger.Debug.Subprocess("Adding global config path to $BUNDLE_USER_CONFIG")
+	ip.logger.Debug.Break()
 	env := append(os.Environ(), fmt.Sprintf("BUNDLE_USER_CONFIG=%s", globalConfigPath))
 
 	var keys []string
@@ -158,19 +166,19 @@ func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[
 	sort.Strings(keys)
 
 	for _, key := range keys {
-		buffer := bytes.NewBuffer(nil)
+		// buffer := bytes.NewBuffer(nil)
 		args := []string{"config", "--global", key, config[key]}
 
 		ip.logger.Subprocess("Running 'bundle %s'", strings.Join(args, " "))
 
 		err := ip.executable.Execute(pexec.Execution{
 			Args:   args,
-			Stdout: buffer,
-			Stderr: buffer,
+			Stdout: ip.logger.ActionWriter,
+			Stderr: ip.logger.ActionWriter,
 			Env:    env,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to execute bundle config output:\n%s\nerror: %s", buffer.String(), err)
+			return fmt.Errorf("failed to execute bundle config output:\nerror: %s", err)
 		}
 	}
 
@@ -197,7 +205,7 @@ func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[
 		cachePath = strings.Trim(cachePathRaw, "\n")
 	}
 
-	buffer = bytes.NewBuffer(nil)
+	ip.logger.Action(buffer.String())
 	args = []string{"install"}
 
 	_, err = os.Stat(filepath.Join(workingDir, cachePath))
@@ -212,8 +220,8 @@ func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[
 	ip.logger.Subprocess("Running 'bundle %s'", strings.Join(args, " "))
 	err = ip.executable.Execute(pexec.Execution{
 		Args:   args,
-		Stdout: buffer,
-		Stderr: buffer,
+		Stdout: ip.logger.ActionWriter,
+		Stderr: ip.logger.ActionWriter,
 		Env:    env,
 	})
 	if err != nil {

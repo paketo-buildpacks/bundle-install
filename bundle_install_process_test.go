@@ -28,6 +28,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 		executable      *fakes.Executable
 		versionResolver *fakes.VersionResolver
 		calculator      *fakes.Calculator
+		buffer          *bytes.Buffer
 
 		installProcess bundleinstall.BundleInstallProcess
 	)
@@ -46,11 +47,11 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 		executable = &fakes.Executable{}
 		executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
 			executions = append(executions, execution)
-
 			return nil
 		}
 
-		logEmitter := scribe.NewEmitter(bytes.NewBuffer(nil))
+		buffer = bytes.NewBuffer(nil)
+		logEmitter := scribe.NewEmitter(buffer)
 		versionResolver = &fakes.VersionResolver{}
 		calculator = &fakes.Calculator{}
 
