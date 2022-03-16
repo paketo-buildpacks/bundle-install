@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	logEmitter := scribe.NewEmitter(os.Stdout)
+	logEmitter := scribe.NewEmitter(os.Stdout).WithLevel(os.Getenv("BP_LOG_LEVEL"))
 
 	packit.Run(
 		bundleinstall.Detect(

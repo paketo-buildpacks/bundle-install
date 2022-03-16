@@ -72,14 +72,19 @@ func Build(installProcess InstallProcess, logger scribe.Emitter, clock chronos.C
 		var layers []packit.Layer
 
 		if build {
+			logger.Debug.Process("Getting the layer associated with %s", LayerNameBuildGems)
 			layer, err := context.Layers.Get(LayerNameBuildGems)
 			if err != nil {
 				return packit.BuildResult{}, err
 			}
+			logger.Debug.Subprocess(layer.Path)
+			logger.Debug.Break()
 
 			layer.Build = true
 			layer.Cache = true
 
+			logger.Debug.Process("Checking if the build environment install process should run")
+			logger.Debug.Break()
 			should, checksum, rubyVersion, err := installProcess.ShouldRun(layer.Metadata, context.WorkingDir)
 			if err != nil {
 				return packit.BuildResult{}, err
@@ -116,13 +121,18 @@ func Build(installProcess InstallProcess, logger scribe.Emitter, clock chronos.C
 		}
 
 		if launch {
+			logger.Debug.Process("Getting the layer associated with %s", LayerNameLaunchGems)
 			layer, err := context.Layers.Get(LayerNameLaunchGems)
 			if err != nil {
 				return packit.BuildResult{}, err
 			}
+			logger.Debug.Subprocess(layer.Path)
+			logger.Debug.Break()
 
 			layer.Launch = true
 
+			logger.Debug.Process("Checking if the launch environment install process should run")
+			logger.Debug.Break()
 			should, checksum, rubyVersion, err := installProcess.ShouldRun(layer.Metadata, context.WorkingDir)
 			if err != nil {
 				return packit.BuildResult{}, err
@@ -175,11 +185,14 @@ func Build(installProcess InstallProcess, logger scribe.Emitter, clock chronos.C
 			logger.EnvironmentVariables(layer)
 		}
 
+		logger.Debug.Process("Cleaning up %s/.bundle/config", context.WorkingDir)
 		err := os.RemoveAll(filepath.Join(context.WorkingDir, ".bundle", "config"))
 		if err != nil {
 			return packit.BuildResult{}, err
 		}
 
+		logger.Debug.Process("Cleaning up %s/.bundle/config.bak", context.WorkingDir)
+		logger.Debug.Break()
 		err = os.RemoveAll(filepath.Join(context.WorkingDir, ".bundle", "config.bak"))
 		if err != nil {
 			return packit.BuildResult{}, err
