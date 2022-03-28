@@ -108,7 +108,6 @@ func Build(installProcess InstallProcess, logger scribe.Emitter, clock chronos.C
 
 				layer.BuildEnv.Default("BUNDLE_USER_CONFIG", filepath.Join(layer.Path, "config"))
 				layer.Metadata = map[string]interface{}{
-					"built_at":     clock.Now().Format(time.RFC3339Nano),
 					"cache_sha":    checksum,
 					"ruby_version": rubyVersion,
 				}
@@ -169,7 +168,6 @@ func Build(installProcess InstallProcess, logger scribe.Emitter, clock chronos.C
 
 				layer.LaunchEnv.Default("BUNDLE_USER_CONFIG", filepath.Join(layer.Path, "config"))
 				layer.Metadata = map[string]interface{}{
-					"built_at":     clock.Now().Format(time.RFC3339Nano),
 					"cache_sha":    checksum,
 					"ruby_version": rubyVersion,
 				}

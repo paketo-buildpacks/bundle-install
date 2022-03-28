@@ -113,7 +113,8 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 			Expect(logs).To(ContainLines(
 				MatchRegexp(fmt.Sprintf(`%s \d+\.\d+\.\d+`, settings.Buildpack.Name)),
 				MatchRegexp(fmt.Sprintf("  Reusing cached layer /layers/%s/build-gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
-				"",
+			))
+			Expect(logs).To(ContainLines(
 				MatchRegexp(fmt.Sprintf("  Reusing cached layer /layers/%s/launch-gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
 			))
 
@@ -129,7 +130,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 
 			Eventually(secondContainer).Should(BeAvailable())
 
-			Expect(secondImage.Buildpacks[2].Layers["launch-gems"].Metadata["built_at"]).To(Equal(firstImage.Buildpacks[2].Layers["launch-gems"].Metadata["built_at"]))
+			Expect(secondImage.Buildpacks[2].Layers["launch-gems"].SHA).To(Equal(firstImage.Buildpacks[2].Layers["launch-gems"].SHA))
 		})
 	})
 
@@ -212,7 +213,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 
 				Eventually(secondContainer).Should(BeAvailable())
 
-				Expect(secondImage.Buildpacks[2].Layers["launch-gems"].Metadata["built_at"]).NotTo(Equal(firstImage.Buildpacks[2].Layers["launch-gems"].Metadata["built_at"]))
+				Expect(secondImage.Buildpacks[2].Layers["launch-gems"].SHA).NotTo(Equal(firstImage.Buildpacks[2].Layers["launch-gems"].SHA))
 			})
 		})
 
@@ -300,7 +301,7 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 
 				Eventually(secondContainer).Should(BeAvailable())
 
-				Expect(secondImage.Buildpacks[2].Layers["launch-gems"].Metadata["built_at"]).NotTo(Equal(firstImage.Buildpacks[2].Layers["launch-gems"].Metadata["built_at"]))
+				Expect(secondImage.Buildpacks[2].Layers["launch-gems"].SHA).NotTo(Equal(firstImage.Buildpacks[2].Layers["launch-gems"].SHA))
 			})
 		})
 	})

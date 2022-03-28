@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	bundleinstall "github.com/paketo-buildpacks/bundle-install"
 	"github.com/paketo-buildpacks/bundle-install/fakes"
@@ -27,7 +26,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		layersDir  string
 		workingDir string
 		buffer     *bytes.Buffer
-		timeStamp  time.Time
 
 		clock chronos.Clock
 
@@ -57,8 +55,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		buffer = bytes.NewBuffer(nil)
 		logEmitter := scribe.NewEmitter(buffer)
 
-		timeStamp = time.Now()
-		clock = chronos.NewClock(func() time.Time { return timeStamp })
+		clock = chronos.DefaultClock
 
 		entryResolver = &fakes.EntryResolver{}
 
@@ -109,7 +106,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						Build:            true,
 						Cache:            true,
 						Metadata: map[string]interface{}{
-							"built_at":     timeStamp.Format(time.RFC3339Nano),
 							"cache_sha":    "some-checksum",
 							"ruby_version": "some-version",
 						},
@@ -184,7 +180,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						ProcessLaunchEnv: map[string]packit.Environment{},
 						Launch:           true,
 						Metadata: map[string]interface{}{
-							"built_at":     timeStamp.Format(time.RFC3339Nano),
 							"cache_sha":    "some-checksum",
 							"ruby_version": "some-version",
 						},
@@ -275,7 +270,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						Build:            true,
 						Cache:            true,
 						Metadata: map[string]interface{}{
-							"built_at":     timeStamp.Format(time.RFC3339Nano),
 							"cache_sha":    "some-checksum",
 							"ruby_version": "some-version",
 						},
@@ -291,7 +285,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						ProcessLaunchEnv: map[string]packit.Environment{},
 						Launch:           true,
 						Metadata: map[string]interface{}{
-							"built_at":     timeStamp.Format(time.RFC3339Nano),
 							"cache_sha":    "some-checksum",
 							"ruby_version": "some-version",
 						},
@@ -312,25 +305,23 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 			installProcess.ShouldRunCall.Returns.Should = false
 
-			err := os.WriteFile(filepath.Join(layersDir, "build-gems.toml"), []byte(fmt.Sprintf(`
+			err := os.WriteFile(filepath.Join(layersDir, "build-gems.toml"), []byte(`
 build = true
 cache = true
 
 [metadata]
 	cache_sha = "some-checksum"
 	ruby_version = "some-version"
-	built_at = "%s"
-`, timeStamp.Format(time.RFC3339Nano))), 0600)
+`), 0600)
 			Expect(err).NotTo(HaveOccurred())
 
-			err = os.WriteFile(filepath.Join(layersDir, "launch-gems.toml"), []byte(fmt.Sprintf(`
+			err = os.WriteFile(filepath.Join(layersDir, "launch-gems.toml"), []byte(`
 launch = true
 
 [metadata]
 	cache_sha = "some-checksum"
 	ruby_version = "some-version"
-	built_at = "%s"
-`, timeStamp.Format(time.RFC3339Nano))), 0600)
+`), 0600)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -367,7 +358,6 @@ launch = true
 						Build:            true,
 						Cache:            true,
 						Metadata: map[string]interface{}{
-							"built_at":     timeStamp.Format(time.RFC3339Nano),
 							"cache_sha":    "some-checksum",
 							"ruby_version": "some-version",
 						},
@@ -381,7 +371,6 @@ launch = true
 						ProcessLaunchEnv: map[string]packit.Environment{},
 						Launch:           true,
 						Metadata: map[string]interface{}{
-							"built_at":     timeStamp.Format(time.RFC3339Nano),
 							"cache_sha":    "some-checksum",
 							"ruby_version": "some-version",
 						},
@@ -392,7 +381,6 @@ launch = true
 			Expect(filepath.Join(workingDir, ".bundle", "config")).NotTo(BeAnExistingFile())
 
 			Expect(installProcess.ShouldRunCall.Receives.Metadata).To(Equal(map[string]interface{}{
-				"built_at":     timeStamp.Format(time.RFC3339Nano),
 				"cache_sha":    "some-checksum",
 				"ruby_version": "some-version",
 			}))
