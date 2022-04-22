@@ -7,6 +7,6 @@ require (
 	github.com/onsi/gomega v1.19.0
 	github.com/paketo-buildpacks/occam v0.8.0
 	github.com/paketo-buildpacks/packit/v2 v2.2.0
-	github.com/pelletier/go-toml v1.9.4
+	github.com/pelletier/go-toml v1.9.5
 	github.com/sclevine/spec v1.4.0
 )
