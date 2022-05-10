@@ -4,7 +4,7 @@ import "sync"
 
 type VersionResolver struct {
 	CompareMajorMinorCall struct {
-		sync.Mutex
+		mutex     sync.Mutex
 		CallCount int
 		Receives  struct {
 			Left  string
@@ -17,7 +17,7 @@ type VersionResolver struct {
 		Stub func(string, string) (bool, error)
 	}
 	LookupCall struct {
-		sync.Mutex
+		mutex     sync.Mutex
 		CallCount int
 		Returns   struct {
 			Version string
@@ -28,8 +28,8 @@ type VersionResolver struct {
 }
 
 func (f *VersionResolver) CompareMajorMinor(param1 string, param2 string) (bool, error) {
-	f.CompareMajorMinorCall.Lock()
-	defer f.CompareMajorMinorCall.Unlock()
+	f.CompareMajorMinorCall.mutex.Lock()
+	defer f.CompareMajorMinorCall.mutex.Unlock()
 	f.CompareMajorMinorCall.CallCount++
 	f.CompareMajorMinorCall.Receives.Left = param1
 	f.CompareMajorMinorCall.Receives.Right = param2
@@ -39,8 +39,8 @@ func (f *VersionResolver) CompareMajorMinor(param1 string, param2 string) (bool,
 	return f.CompareMajorMinorCall.Returns.Bool, f.CompareMajorMinorCall.Returns.Error
 }
 func (f *VersionResolver) Lookup() (string, error) {
-	f.LookupCall.Lock()
-	defer f.LookupCall.Unlock()
+	f.LookupCall.mutex.Lock()
+	defer f.LookupCall.mutex.Unlock()
 	f.LookupCall.CallCount++
 	if f.LookupCall.Stub != nil {
 		return f.LookupCall.Stub()
