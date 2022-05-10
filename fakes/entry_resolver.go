@@ -3,12 +3,12 @@ package fakes
 import (
 	"sync"
 
-	"github.com/paketo-buildpacks/packit/v2"
+	packit "github.com/paketo-buildpacks/packit/v2"
 )
 
 type EntryResolver struct {
 	MergeLayerTypesCall struct {
-		sync.Mutex
+		mutex     sync.Mutex
 		CallCount int
 		Receives  struct {
 			String                  string
@@ -23,8 +23,8 @@ type EntryResolver struct {
 }
 
 func (f *EntryResolver) MergeLayerTypes(param1 string, param2 []packit.BuildpackPlanEntry) (bool, bool) {
-	f.MergeLayerTypesCall.Lock()
-	defer f.MergeLayerTypesCall.Unlock()
+	f.MergeLayerTypesCall.mutex.Lock()
+	defer f.MergeLayerTypesCall.mutex.Unlock()
 	f.MergeLayerTypesCall.CallCount++
 	f.MergeLayerTypesCall.Receives.String = param1
 	f.MergeLayerTypesCall.Receives.BuildpackPlanEntrySlice = param2

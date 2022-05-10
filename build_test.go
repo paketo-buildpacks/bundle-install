@@ -12,6 +12,7 @@ import (
 	"github.com/paketo-buildpacks/bundle-install/fakes"
 	"github.com/paketo-buildpacks/packit/v2"
 	"github.com/paketo-buildpacks/packit/v2/chronos"
+	"github.com/paketo-buildpacks/packit/v2/sbom"
 	"github.com/paketo-buildpacks/packit/v2/scribe"
 	"github.com/sclevine/spec"
 
@@ -31,8 +32,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 		installProcess *fakes.InstallProcess
 		entryResolver  *fakes.EntryResolver
+		sbomGenerator  *fakes.SBOMGenerator
 
-		build packit.BuildFunc
+		build        packit.BuildFunc
+		buildContext packit.BuildContext
 	)
 
 	it.Before(func() {
@@ -52,6 +55,9 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		installProcess.ShouldRunCall.Returns.Checksum = "some-checksum"
 		installProcess.ShouldRunCall.Returns.RubyVersion = "some-version"
 
+		sbomGenerator = &fakes.SBOMGenerator{}
+		sbomGenerator.GenerateCall.Returns.SBOM = sbom.SBOM{}
+
 		buffer = bytes.NewBuffer(nil)
 		logEmitter := scribe.NewEmitter(buffer)
 
@@ -59,7 +65,24 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 		entryResolver = &fakes.EntryResolver{}
 
-		build = bundleinstall.Build(installProcess, logEmitter, clock, entryResolver)
+		build = bundleinstall.Build(
+			entryResolver,
+			installProcess,
+			sbomGenerator,
+			logEmitter,
+			clock,
+		)
+
+		buildContext = packit.BuildContext{
+			WorkingDir: workingDir,
+			BuildpackInfo: packit.BuildpackInfo{
+				Name:        "Some Buildpack",
+				Version:     "some-version",
+				SBOMFormats: []string{sbom.CycloneDXFormat, sbom.SPDXFormat},
+			},
+			Plan:   packit.BuildpackPlan{},
+			Layers: packit.Layers{Path: layersDir},
+		}
 	})
 
 	it.After(func() {
@@ -69,47 +92,52 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 	context("when required during build", func() {
 		it.Before(func() {
+			buildContext.Plan.Entries = []packit.BuildpackPlanEntry{
+				{
+					Name: "gems",
+					Metadata: map[string]interface{}{
+						"build": true,
+					},
+				},
+			}
 			entryResolver.MergeLayerTypesCall.Returns.Build = true
 		})
 
 		it("returns a result that installs build gems", func() {
-			result, err := build(packit.BuildContext{
-				WorkingDir: workingDir,
-				BuildpackInfo: packit.BuildpackInfo{
-					Name:    "Some Buildpack",
-					Version: "some-version",
-				},
-				Plan: packit.BuildpackPlan{
-					Entries: []packit.BuildpackPlanEntry{
-						{
-							Name: "gems",
-							Metadata: map[string]interface{}{
-								"build": true,
-							},
-						},
-					},
-				},
-				Layers: packit.Layers{Path: layersDir},
-			})
+			result, err := build(buildContext)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result).To(Equal(packit.BuildResult{
-				Layers: []packit.Layer{
-					{
-						Name:      "build-gems",
-						Path:      filepath.Join(layersDir, "build-gems"),
-						LaunchEnv: packit.Environment{},
-						BuildEnv: packit.Environment{
-							"BUNDLE_USER_CONFIG.default": filepath.Join(layersDir, "build-gems", "config"),
-						},
-						SharedEnv:        packit.Environment{},
-						ProcessLaunchEnv: map[string]packit.Environment{},
-						Build:            true,
-						Cache:            true,
-						Metadata: map[string]interface{}{
-							"cache_sha":    "some-checksum",
-							"ruby_version": "some-version",
-						},
-					},
+
+			layers := result.Layers
+			Expect(layers).To(HaveLen(1))
+
+			layer := layers[0]
+			Expect(layer.Name).To(Equal("build-gems"))
+			Expect(layer.Path).To(Equal(filepath.Join(layersDir, "build-gems")))
+
+			Expect(layer.Build).To(BeTrue())
+			Expect(layer.Launch).To(BeFalse())
+			Expect(layer.Cache).To(BeTrue())
+
+			Expect(layer.BuildEnv).To(Equal(packit.Environment{
+				"BUNDLE_USER_CONFIG.default": filepath.Join(layersDir, "build-gems", "config"),
+			}))
+			Expect(layer.LaunchEnv).To(BeEmpty())
+			Expect(layer.ProcessLaunchEnv).To(BeEmpty())
+			Expect(layer.SharedEnv).To(BeEmpty())
+
+			Expect(layer.Metadata).To(Equal(map[string]interface{}{
+				"cache_sha":    "some-checksum",
+				"ruby_version": "some-version",
+			}))
+
+			Expect(layer.SBOM.Formats()).To(Equal([]packit.SBOMFormat{
+				{
+					Extension: sbom.Format(sbom.CycloneDXFormat).Extension(),
+					Content:   sbom.NewFormattedReader(sbom.SBOM{}, sbom.CycloneDXFormat),
+				},
+				{
+					Extension: sbom.Format(sbom.SPDXFormat).Extension(),
+					Content:   sbom.NewFormattedReader(sbom.SBOM{}, sbom.SPDXFormat),
 				},
 			}))
 
@@ -131,11 +159,14 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 				"clean": "true",
 			}))
 
+			Expect(sbomGenerator.GenerateCall.Receives.Dir).To(Equal(workingDir))
+
 			Expect(buffer).To(ContainLines(
 				"Some Buildpack some-version",
 				"  Executing build environment install process",
 				"      Completed in 0s",
-				"",
+			))
+			Expect(buffer).To(ContainLines(
 				"  Configuring build environment",
 				fmt.Sprintf("    BUNDLE_USER_CONFIG -> %q", filepath.Join(layersDir, "build-gems", "config")),
 			))
@@ -144,46 +175,52 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 	context("when required during launch", func() {
 		it.Before(func() {
+			buildContext.Plan.Entries = []packit.BuildpackPlanEntry{
+				{
+					Name: "gems",
+					Metadata: map[string]interface{}{
+						"launch": true,
+					},
+				},
+			}
 			entryResolver.MergeLayerTypesCall.Returns.Launch = true
 		})
 
 		it("returns a result that installs launch gems", func() {
-			result, err := build(packit.BuildContext{
-				WorkingDir: workingDir,
-				BuildpackInfo: packit.BuildpackInfo{
-					Name:    "Some Buildpack",
-					Version: "some-version",
-				},
-				Plan: packit.BuildpackPlan{
-					Entries: []packit.BuildpackPlanEntry{
-						{
-							Name: "gems",
-							Metadata: map[string]interface{}{
-								"launch": true,
-							},
-						},
-					},
-				},
-				Layers: packit.Layers{Path: layersDir},
-			})
+			result, err := build(buildContext)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result).To(Equal(packit.BuildResult{
-				Layers: []packit.Layer{
-					{
-						Name: "launch-gems",
-						Path: filepath.Join(layersDir, "launch-gems"),
-						LaunchEnv: packit.Environment{
-							"BUNDLE_USER_CONFIG.default": filepath.Join(layersDir, "launch-gems", "config"),
-						},
-						BuildEnv:         packit.Environment{},
-						SharedEnv:        packit.Environment{},
-						ProcessLaunchEnv: map[string]packit.Environment{},
-						Launch:           true,
-						Metadata: map[string]interface{}{
-							"cache_sha":    "some-checksum",
-							"ruby_version": "some-version",
-						},
-					},
+
+			layers := result.Layers
+			Expect(layers).To(HaveLen(1))
+
+			layer := layers[0]
+			Expect(layer.Name).To(Equal("launch-gems"))
+			Expect(layer.Path).To(Equal(filepath.Join(layersDir, "launch-gems")))
+
+			Expect(layer.Build).To(BeFalse())
+			Expect(layer.Launch).To(BeTrue())
+			Expect(layer.Cache).To(BeFalse())
+
+			Expect(layer.BuildEnv).To(BeEmpty())
+			Expect(layer.LaunchEnv).To(Equal(packit.Environment{
+				"BUNDLE_USER_CONFIG.default": filepath.Join(layersDir, "launch-gems", "config"),
+			}))
+			Expect(layer.ProcessLaunchEnv).To(BeEmpty())
+			Expect(layer.SharedEnv).To(BeEmpty())
+
+			Expect(layer.Metadata).To(Equal(map[string]interface{}{
+				"cache_sha":    "some-checksum",
+				"ruby_version": "some-version",
+			}))
+
+			Expect(layer.SBOM.Formats()).To(Equal([]packit.SBOMFormat{
+				{
+					Extension: sbom.Format(sbom.CycloneDXFormat).Extension(),
+					Content:   sbom.NewFormattedReader(sbom.SBOM{}, sbom.CycloneDXFormat),
+				},
+				{
+					Extension: sbom.Format(sbom.SPDXFormat).Extension(),
+					Content:   sbom.NewFormattedReader(sbom.SBOM{}, sbom.SPDXFormat),
 				},
 			}))
 
@@ -205,11 +242,14 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 				"clean":   "true",
 			}))
 
+			Expect(sbomGenerator.GenerateCall.Receives.Dir).To(Equal(workingDir))
+
 			Expect(buffer).To(ContainLines(
 				"Some Buildpack some-version",
 				"  Executing launch environment install process",
 				"      Completed in 0s",
-				"",
+			))
+			Expect(buffer).To(ContainLines(
 				"  Configuring launch environment",
 				fmt.Sprintf("    BUNDLE_USER_CONFIG -> %q", filepath.Join(layersDir, "launch-gems", "config")),
 			))
@@ -218,24 +258,30 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 	context("when not required during either build or launch", func() {
 		it("returns a result that has no layers", func() {
-			result, err := build(packit.BuildContext{
-				WorkingDir: workingDir,
-				BuildpackInfo: packit.BuildpackInfo{
-					Name:    "Some Buildpack",
-					Version: "some-version",
-				},
-				Plan: packit.BuildpackPlan{
-					Entries: []packit.BuildpackPlanEntry{{Name: "gems"}},
-				},
-				Layers: packit.Layers{Path: layersDir},
-			})
+			result, err := build(buildContext)
 			Expect(err).NotTo(HaveOccurred())
+
 			Expect(result).To(Equal(packit.BuildResult{}))
 		})
 	})
 
 	context("when required during both build and launch", func() {
 		it.Before(func() {
+			buildContext.Plan.Entries = []packit.BuildpackPlanEntry{
+				{
+					Name: "gems",
+					Metadata: map[string]interface{}{
+						"build": true,
+					},
+				},
+				{
+					Name: "gems",
+					Metadata: map[string]interface{}{
+						"launch": true,
+					},
+				},
+			}
+
 			entryResolver.MergeLayerTypesCall.Returns.Build = true
 			entryResolver.MergeLayerTypesCall.Returns.Launch = true
 
@@ -244,51 +290,71 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		})
 
 		it("copies gems from the build layer into the launch layer for performance", func() {
-			result, err := build(packit.BuildContext{
-				WorkingDir: workingDir,
-				BuildpackInfo: packit.BuildpackInfo{
-					Name:    "Some Buildpack",
-					Version: "some-version",
-				},
-				Plan: packit.BuildpackPlan{
-					Entries: []packit.BuildpackPlanEntry{{Name: "gems"}},
-				},
-				Layers: packit.Layers{Path: layersDir},
-			})
+			result, err := build(buildContext)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result).To(Equal(packit.BuildResult{
-				Layers: []packit.Layer{
-					{
-						Name:      "build-gems",
-						Path:      filepath.Join(layersDir, "build-gems"),
-						LaunchEnv: packit.Environment{},
-						BuildEnv: packit.Environment{
-							"BUNDLE_USER_CONFIG.default": filepath.Join(layersDir, "build-gems", "config"),
-						},
-						SharedEnv:        packit.Environment{},
-						ProcessLaunchEnv: map[string]packit.Environment{},
-						Build:            true,
-						Cache:            true,
-						Metadata: map[string]interface{}{
-							"cache_sha":    "some-checksum",
-							"ruby_version": "some-version",
-						},
-					},
-					{
-						Name: "launch-gems",
-						Path: filepath.Join(layersDir, "launch-gems"),
-						LaunchEnv: packit.Environment{
-							"BUNDLE_USER_CONFIG.default": filepath.Join(layersDir, "launch-gems", "config"),
-						},
-						BuildEnv:         packit.Environment{},
-						SharedEnv:        packit.Environment{},
-						ProcessLaunchEnv: map[string]packit.Environment{},
-						Launch:           true,
-						Metadata: map[string]interface{}{
-							"cache_sha":    "some-checksum",
-							"ruby_version": "some-version",
-						},
-					},
+
+			layers := result.Layers
+			Expect(layers).To(HaveLen(2))
+
+			buildLayer := layers[0]
+			Expect(buildLayer.Name).To(Equal("build-gems"))
+			Expect(buildLayer.Path).To(Equal(filepath.Join(layersDir, "build-gems")))
+
+			Expect(buildLayer.Build).To(BeTrue())
+			Expect(buildLayer.Launch).To(BeFalse())
+			Expect(buildLayer.Cache).To(BeTrue())
+
+			Expect(buildLayer.BuildEnv).To(Equal(packit.Environment{
+				"BUNDLE_USER_CONFIG.default": filepath.Join(layersDir, "build-gems", "config"),
+			}))
+			Expect(buildLayer.LaunchEnv).To(BeEmpty())
+			Expect(buildLayer.ProcessLaunchEnv).To(BeEmpty())
+			Expect(buildLayer.SharedEnv).To(BeEmpty())
+
+			Expect(buildLayer.Metadata).To(Equal(map[string]interface{}{
+				"cache_sha":    "some-checksum",
+				"ruby_version": "some-version",
+			}))
+
+			Expect(buildLayer.SBOM.Formats()).To(Equal([]packit.SBOMFormat{
+				{
+					Extension: sbom.Format(sbom.CycloneDXFormat).Extension(),
+					Content:   sbom.NewFormattedReader(sbom.SBOM{}, sbom.CycloneDXFormat),
+				},
+				{
+					Extension: sbom.Format(sbom.SPDXFormat).Extension(),
+					Content:   sbom.NewFormattedReader(sbom.SBOM{}, sbom.SPDXFormat),
+				},
+			}))
+
+			launchLayer := layers[1]
+			Expect(launchLayer.Name).To(Equal("launch-gems"))
+			Expect(launchLayer.Path).To(Equal(filepath.Join(layersDir, "launch-gems")))
+
+			Expect(launchLayer.Build).To(BeFalse())
+			Expect(launchLayer.Launch).To(BeTrue())
+			Expect(launchLayer.Cache).To(BeFalse())
+
+			Expect(launchLayer.BuildEnv).To(BeEmpty())
+			Expect(launchLayer.LaunchEnv).To(Equal(packit.Environment{
+				"BUNDLE_USER_CONFIG.default": filepath.Join(layersDir, "launch-gems", "config"),
+			}))
+			Expect(launchLayer.ProcessLaunchEnv).To(BeEmpty())
+			Expect(launchLayer.SharedEnv).To(BeEmpty())
+
+			Expect(launchLayer.Metadata).To(Equal(map[string]interface{}{
+				"cache_sha":    "some-checksum",
+				"ruby_version": "some-version",
+			}))
+
+			Expect(launchLayer.SBOM.Formats()).To(Equal([]packit.SBOMFormat{
+				{
+					Extension: sbom.Format(sbom.CycloneDXFormat).Extension(),
+					Content:   sbom.NewFormattedReader(sbom.SBOM{}, sbom.CycloneDXFormat),
+				},
+				{
+					Extension: sbom.Format(sbom.SPDXFormat).Extension(),
+					Content:   sbom.NewFormattedReader(sbom.SBOM{}, sbom.SPDXFormat),
 				},
 			}))
 
@@ -326,57 +392,27 @@ launch = true
 		})
 
 		it("returns a result that reuses the existing layer", func() {
-			result, err := build(packit.BuildContext{
-				WorkingDir: workingDir,
-				BuildpackInfo: packit.BuildpackInfo{
-					Name:    "Some Buildpack",
-					Version: "some-version",
-				},
-				Plan: packit.BuildpackPlan{
-					Entries: []packit.BuildpackPlanEntry{
-						{
-							Name: "gems",
-							Metadata: map[string]interface{}{
-								"launch": true,
-								"build":  true,
-							},
-						},
-					},
-				},
-				Layers: packit.Layers{Path: layersDir},
-			})
+			result, err := build(buildContext)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result).To(Equal(packit.BuildResult{
-				Layers: []packit.Layer{
-					{
-						Name:             "build-gems",
-						Path:             filepath.Join(layersDir, "build-gems"),
-						LaunchEnv:        packit.Environment{},
-						BuildEnv:         packit.Environment{},
-						SharedEnv:        packit.Environment{},
-						ProcessLaunchEnv: map[string]packit.Environment{},
-						Build:            true,
-						Cache:            true,
-						Metadata: map[string]interface{}{
-							"cache_sha":    "some-checksum",
-							"ruby_version": "some-version",
-						},
-					},
-					{
-						Name:             "launch-gems",
-						Path:             filepath.Join(layersDir, "launch-gems"),
-						LaunchEnv:        packit.Environment{},
-						BuildEnv:         packit.Environment{},
-						SharedEnv:        packit.Environment{},
-						ProcessLaunchEnv: map[string]packit.Environment{},
-						Launch:           true,
-						Metadata: map[string]interface{}{
-							"cache_sha":    "some-checksum",
-							"ruby_version": "some-version",
-						},
-					},
-				},
-			}))
+
+			layers := result.Layers
+			Expect(layers).To(HaveLen(2))
+
+			buildLayer := layers[0]
+			Expect(buildLayer.Name).To(Equal("build-gems"))
+			Expect(buildLayer.Path).To(Equal(filepath.Join(layersDir, "build-gems")))
+
+			Expect(buildLayer.Build).To(BeTrue())
+			Expect(buildLayer.Launch).To(BeFalse())
+			Expect(buildLayer.Cache).To(BeTrue())
+
+			launchLayer := layers[1]
+			Expect(launchLayer.Name).To(Equal("launch-gems"))
+			Expect(launchLayer.Path).To(Equal(filepath.Join(layersDir, "launch-gems")))
+
+			Expect(launchLayer.Build).To(BeFalse())
+			Expect(launchLayer.Launch).To(BeTrue())
+			Expect(launchLayer.Cache).To(BeFalse())
 
 			Expect(filepath.Join(workingDir, ".bundle", "config")).NotTo(BeAnExistingFile())
 
@@ -415,13 +451,7 @@ launch = true
 				})
 
 				it("returns an error", func() {
-					_, err := build(packit.BuildContext{
-						WorkingDir: workingDir,
-						Plan: packit.BuildpackPlan{
-							Entries: []packit.BuildpackPlanEntry{{Name: "gems"}},
-						},
-						Layers: packit.Layers{Path: layersDir},
-					})
+					_, err := build(buildContext)
 					Expect(err).To(MatchError(ContainSubstring("permission denied")))
 				})
 			})
@@ -432,13 +462,7 @@ launch = true
 				})
 
 				it("returns an error", func() {
-					_, err := build(packit.BuildContext{
-						WorkingDir: workingDir,
-						Plan: packit.BuildpackPlan{
-							Entries: []packit.BuildpackPlanEntry{{Name: "gems"}},
-						},
-						Layers: packit.Layers{Path: layersDir},
-					})
+					_, err := build(buildContext)
 					Expect(err).To(MatchError(ContainSubstring("permission denied")))
 				})
 			})
@@ -451,13 +475,7 @@ launch = true
 			})
 
 			it("returns an error", func() {
-				_, err := build(packit.BuildContext{
-					WorkingDir: workingDir,
-					Plan: packit.BuildpackPlan{
-						Entries: []packit.BuildpackPlanEntry{{Name: "gems"}},
-					},
-					Layers: packit.Layers{Path: layersDir},
-				})
+				_, err := build(buildContext)
 				Expect(err).To(MatchError("failed to check if should run"))
 			})
 		})
@@ -469,14 +487,96 @@ launch = true
 			})
 
 			it("returns an error", func() {
-				_, err := build(packit.BuildContext{
-					WorkingDir: workingDir,
-					Plan: packit.BuildpackPlan{
-						Entries: []packit.BuildpackPlanEntry{{Name: "gems"}},
-					},
-					Layers: packit.Layers{Path: layersDir},
-				})
+				_, err := build(buildContext)
 				Expect(err).To(MatchError("failed to execute"))
+			})
+		})
+
+		context("when generating the build SBOM returns an error", func() {
+			it.Before(func() {
+				buildContext.Plan.Entries = []packit.BuildpackPlanEntry{
+					{
+						Name: "gems",
+						Metadata: map[string]interface{}{
+							"build": true,
+						},
+					},
+				}
+				entryResolver.MergeLayerTypesCall.Returns.Build = true
+
+				sbomGenerator.GenerateCall.Returns.Error = errors.New("failed to generate SBOM")
+			})
+
+			it("returns an error", func() {
+				_, err := build(buildContext)
+
+				Expect(err).To(MatchError(ContainSubstring("failed to generate SBOM")))
+			})
+		})
+
+		context("when formatting the build SBOM returns an error", func() {
+			it.Before(func() {
+				buildContext.Plan.Entries = []packit.BuildpackPlanEntry{
+					{
+						Name: "gems",
+						Metadata: map[string]interface{}{
+							"build": true,
+						},
+					},
+				}
+				entryResolver.MergeLayerTypesCall.Returns.Build = true
+
+				buildContext.BuildpackInfo.SBOMFormats = []string{"random-format"}
+			})
+
+			it("returns an error", func() {
+				_, err := build(buildContext)
+
+				Expect(err).To(MatchError(`unsupported SBOM format: 'random-format'`))
+			})
+		})
+
+		context("when generating the launch SBOM returns an error", func() {
+			it.Before(func() {
+				buildContext.Plan.Entries = []packit.BuildpackPlanEntry{
+					{
+						Name: "gems",
+						Metadata: map[string]interface{}{
+							"launch": true,
+						},
+					},
+				}
+				entryResolver.MergeLayerTypesCall.Returns.Launch = true
+
+				sbomGenerator.GenerateCall.Returns.Error = errors.New("failed to generate SBOM")
+			})
+
+			it("returns an error", func() {
+				_, err := build(buildContext)
+
+				Expect(err).To(MatchError(ContainSubstring("failed to generate SBOM")))
+			})
+		})
+
+		context("when formatting the launch SBOM returns an error", func() {
+			it.Before(func() {
+				buildContext.Plan.Entries = []packit.BuildpackPlanEntry{
+					{
+						Name: "gems",
+						Metadata: map[string]interface{}{
+							"launch": true,
+						},
+					},
+				}
+				entryResolver.MergeLayerTypesCall.Returns.Launch = true
+
+				buildContext.BuildpackInfo.SBOMFormats = []string{"random-format"}
+			})
+
+			it("returns an error", func() {
+				_, err := build(buildContext)
+
+				Expect(err).To(MatchError(`unsupported SBOM format: 'random-format'`))
 			})
 		})
 	})
