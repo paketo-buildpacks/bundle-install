@@ -400,7 +400,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 				Expect(filepath.Join(sbomDir, "sbom", "launch", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"), "launch-gems", "sbom.spdx.json")).To(BeARegularFile())
 				Expect(filepath.Join(sbomDir, "sbom", "launch", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"), "launch-gems", "sbom.syft.json")).To(BeARegularFile())
 
-				// check an SBOM file to make sure it has an entry for a dependency from requirements.txt
+				// check an SBOM file to make sure it has an entry for a dependency from Gemfile.lock
 				contents, err := os.ReadFile(filepath.Join(sbomDir, "sbom", "launch", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"), "launch-gems", "sbom.cdx.json"))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(string(contents)).To(ContainSubstring(`"name": "sinatra"`))
