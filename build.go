@@ -8,11 +8,13 @@ import (
 	"github.com/paketo-buildpacks/packit/v2"
 	"github.com/paketo-buildpacks/packit/v2/chronos"
 	"github.com/paketo-buildpacks/packit/v2/fs"
+	"github.com/paketo-buildpacks/packit/v2/sbom"
 	"github.com/paketo-buildpacks/packit/v2/scribe"
 )
 
 //go:generate faux --interface InstallProcess --output fakes/install_process.go
 //go:generate faux --interface EntryResolver --output fakes/entry_resolver.go
+//go:generate faux --interface SBOMGenerator --output fakes/sbom_generator.go
 
 // InstallProcess defines the interface for executing the "bundle install"
 // build process.
@@ -25,6 +27,10 @@ type InstallProcess interface {
 // lifecycle will require gems.
 type EntryResolver interface {
 	MergeLayerTypes(string, []packit.BuildpackPlanEntry) (launch, build bool)
+}
+
+type SBOMGenerator interface {
+	Generate(dir string) (sbom.SBOM, error)
 }
 
 // Build will return a packit.BuildFunc that will be invoked during the build
@@ -63,7 +69,13 @@ type EntryResolver interface {
 // configuration from the global location, which will be configured to point to
 // a file that is maintained in each of the build and launch layers
 // respectively.
-func Build(installProcess InstallProcess, logger scribe.Emitter, clock chronos.Clock, entries EntryResolver) packit.BuildFunc {
+func Build(
+	entries EntryResolver,
+	installProcess InstallProcess,
+	sbomGenerator SBOMGenerator,
+	logger scribe.Emitter,
+	clock chronos.Clock,
+) packit.BuildFunc {
 	return func(context packit.BuildContext) (packit.BuildResult, error) {
 		logger.Title("%s %s", context.BuildpackInfo.Name, context.BuildpackInfo.Version)
 
@@ -110,6 +122,26 @@ func Build(installProcess InstallProcess, logger scribe.Emitter, clock chronos.C
 				layer.Metadata = map[string]interface{}{
 					"cache_sha":    checksum,
 					"ruby_version": rubyVersion,
+				}
+
+				logger.GeneratingSBOM(layer.Path)
+
+				var sbomContent sbom.SBOM
+				duration, err = clock.Measure(func() error {
+					sbomContent, err = sbomGenerator.Generate(context.WorkingDir)
+					return err
+				})
+				if err != nil {
+					return packit.BuildResult{}, err
+				}
+				logger.Action("Completed in %s", duration.Round(time.Millisecond))
+				logger.Break()
+
+				logger.FormattingSBOM(context.BuildpackInfo.SBOMFormats...)
+
+				layer.SBOM, err = sbomContent.InFormats(context.BuildpackInfo.SBOMFormats...)
+				if err != nil {
+					return packit.BuildResult{}, err
 				}
 			} else {
 				logger.Process("Reusing cached layer %s", layer.Path)
@@ -170,6 +202,26 @@ func Build(installProcess InstallProcess, logger scribe.Emitter, clock chronos.C
 				layer.Metadata = map[string]interface{}{
 					"cache_sha":    checksum,
 					"ruby_version": rubyVersion,
+				}
+
+				logger.GeneratingSBOM(layer.Path)
+
+				var sbomContent sbom.SBOM
+				duration, err = clock.Measure(func() error {
+					sbomContent, err = sbomGenerator.Generate(context.WorkingDir)
+					return err
+				})
+				if err != nil {
+					return packit.BuildResult{}, err
+				}
+				logger.Action("Completed in %s", duration.Round(time.Millisecond))
+				logger.Break()
+
+				logger.FormattingSBOM(context.BuildpackInfo.SBOMFormats...)
+
+				layer.SBOM, err = sbomContent.InFormats(context.BuildpackInfo.SBOMFormats...)
+				if err != nil {
+					return packit.BuildResult{}, err
 				}
 			} else {
 				logger.Process("Reusing cached layer %s", layer.Path)

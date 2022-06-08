@@ -41,6 +41,9 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			var err error
 			name, err = occam.RandomName()
 			Expect(err).NotTo(HaveOccurred())
+
+			source, err = occam.Source(filepath.Join("testdata", "simple_app"))
+			Expect(err).NotTo(HaveOccurred())
 		})
 
 		it.After(func() {
@@ -51,11 +54,9 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 		})
 
 		it("creates a working OCI image", func() {
-			var err error
-			source, err = occam.Source(filepath.Join("testdata", "simple_app"))
-			Expect(err).NotTo(HaveOccurred())
-
 			var logs fmt.Stringer
+			var err error
+
 			image, logs, err = pack.Build.
 				WithBuildpacks(
 					settings.Buildpacks.MRI.Online,
@@ -72,16 +73,19 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 				MatchRegexp(fmt.Sprintf(`%s \d+\.\d+\.\d+`, settings.Buildpack.Name)),
 				"  Getting the layer associated with build-gems",
 				"    /layers/paketo-buildpacks_bundle-install/build-gems",
-				"",
+			))
+			Expect(logs).To(ContainLines(
 				"  Checking if the build environment install process should run",
-				"",
+			))
+			Expect(logs).To(ContainLines(
 				"  Executing build environment install process",
 				"    Setting up bundle install config paths:",
 				"      Local config path: /workspace/.bundle/config",
 				"      Backup config path: /workspace/.bundle/config.bak",
 				MatchRegexp(fmt.Sprintf(`      Global config path: /layers/%s/build-gems/config`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
 				"    Adding global config path to $BUNDLE_USER_CONFIG",
-				"",
+			))
+			Expect(logs).To(ContainLines(
 				"    Running 'bundle config --global clean true'",
 			))
 			Expect(logs).To(ContainLines(
@@ -91,19 +95,23 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			Expect(logs).To(ContainLines("    Running 'bundle install'"))
 			Expect(logs).To(ContainLines(
 				MatchRegexp(`      Completed in \d+\.?\d*`),
-				"",
+			))
+			Expect(logs).To(ContainLines(
 				"  Getting the layer associated with launch-gems",
 				"    /layers/paketo-buildpacks_bundle-install/launch-gems",
-				"",
+			))
+			Expect(logs).To(ContainLines(
 				"  Checking if the launch environment install process should run",
-				"",
+			))
+			Expect(logs).To(ContainLines(
 				"  Executing launch environment install process",
 				"    Setting up bundle install config paths:",
 				"      Local config path: /workspace/.bundle/config",
 				"      Backup config path: /workspace/.bundle/config.bak",
 				MatchRegexp(fmt.Sprintf(`      Global config path: /layers/%s/launch-gems/config`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
 				"    Adding global config path to $BUNDLE_USER_CONFIG",
-				"",
+			))
+			Expect(logs).To(ContainLines(
 				"    Running 'bundle config --global clean true'",
 			))
 			Expect(logs).To(ContainLines(
@@ -114,13 +122,16 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			Expect(logs).To(ContainLines("    Running 'bundle install'"))
 			Expect(logs).To(ContainLines(
 				MatchRegexp(`      Completed in \d+\.?\d*`),
-				"",
+			))
+			Expect(logs).To(ContainLines(
 				"  Configuring build environment",
 				MatchRegexp(fmt.Sprintf(`    BUNDLE_USER_CONFIG -> "/layers/%s/build-gems/config"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
-				"",
+			))
+			Expect(logs).To(ContainLines(
 				"  Configuring launch environment",
 				MatchRegexp(fmt.Sprintf(`    BUNDLE_USER_CONFIG -> "/layers/%s/launch-gems/config"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
-				"",
+			))
+			Expect(logs).To(ContainLines(
 				"  Cleaning up /workspace/.bundle/config",
 				"  Cleaning up /workspace/.bundle/config.bak",
 				"",
@@ -162,16 +173,20 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			Expect(logs).To(ContainLines(
 				"clean",
 				"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): true",
-				"",
+			))
+			Expect(logs).To(ContainLines(
 				"path",
 				`Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): "/layers/paketo-buildpacks_bundle-install/launch-gems"`,
-				"",
+			))
+			Expect(logs).To(ContainLines(
 				"retry",
 				"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): 5",
-				"",
+			))
+			Expect(logs).To(ContainLines(
 				"user_config",
 				`Set via BUNDLE_USER_CONFIG: "/layers/paketo-buildpacks_bundle-install/launch-gems/config"`,
-				"",
+			))
+			Expect(logs).To(ContainLines(
 				"without",
 				"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): [:development, :test]",
 			))
@@ -199,11 +214,12 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 
 		context("the version of bundler in the Gemfile.lock is 1.17.x", func() {
 			it("creates a working OCI image", func() {
+				var logs fmt.Stringer
 				var err error
+
 				source, err = occam.Source(filepath.Join("testdata", "bundler_version_1_17"))
 				Expect(err).NotTo(HaveOccurred())
 
-				var logs fmt.Stringer
 				image, logs, err = pack.WithVerbose().Build.
 					WithBuildpacks(
 						settings.Buildpacks.MRI.Online,
@@ -226,7 +242,8 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 				Expect(logs).To(ContainLines("    Running 'bundle install'"))
 				Expect(logs).To(ContainLines(
 					MatchRegexp(`      Completed in \d+\.?\d*`),
-					"",
+				))
+				Expect(logs).To(ContainLines(
 					"  Executing launch environment install process",
 					"    Running 'bundle config --global clean true'",
 				))
@@ -236,13 +253,14 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 				Expect(logs).To(ContainLines("    Running 'bundle install'"))
 				Expect(logs).To(ContainLines(
 					MatchRegexp(`      Completed in \d+\.?\d*`),
-					"",
+				))
+				Expect(logs).To(ContainLines(
 					"  Configuring build environment",
 					MatchRegexp(fmt.Sprintf(`    BUNDLE_USER_CONFIG -> "/layers/%s/build-gems/config"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
-					"",
+				))
+				Expect(logs).To(ContainLines(
 					"  Configuring launch environment",
 					MatchRegexp(fmt.Sprintf(`    BUNDLE_USER_CONFIG -> "/layers/%s/launch-gems/config"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
-					"",
 				))
 
 				Expect(logs).To(ContainLines(
@@ -282,16 +300,20 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 				Expect(logs).To(ContainLines(
 					"retry",
 					"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): 5",
-					"",
+				))
+				Expect(logs).To(ContainLines(
 					"clean",
 					`Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): "true"`,
-					"",
+				))
+				Expect(logs).To(ContainLines(
 					"path",
 					`Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): "/layers/paketo-buildpacks_bundle-install/launch-gems"`,
-					"",
+				))
+				Expect(logs).To(ContainLines(
 					"without",
 					"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): [:development, :test]",
-					"",
+				))
+				Expect(logs).To(ContainLines(
 					"user_config",
 					`Set via BUNDLE_USER_CONFIG: "/layers/paketo-buildpacks_bundle-install/launch-gems/config"`,
 				))
@@ -306,6 +328,82 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 					MatchRegexp(`  \* sinatra`),
 					MatchRegexp(`  \* tilt`),
 				))
+			})
+		})
+
+		context("validating SBOM", func() {
+			var (
+				sbomDir string
+			)
+
+			it.Before(func() {
+				var err error
+				sbomDir, err = os.MkdirTemp("", "sbom")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(os.Chmod(sbomDir, os.ModePerm)).To(Succeed())
+			})
+
+			it.After(func() {
+				Expect(os.RemoveAll(sbomDir)).To(Succeed())
+			})
+
+			it("writes SBOM files to the layer and label metadata", func() {
+				var err error
+				var logs fmt.Stringer
+				image, logs, err = pack.WithNoColor().Build.
+					WithPullPolicy("never").
+					WithBuildpacks(
+						settings.Buildpacks.MRI.Online,
+						settings.Buildpacks.Bundler.Online,
+						settings.Buildpacks.BundleInstall.Online,
+						settings.Buildpacks.BundleList.Online,
+					).
+					WithEnv(map[string]string{
+						"BP_LOG_LEVEL": "DEBUG",
+					}).
+					WithSBOMOutputDir(sbomDir).
+					Execute(name, source)
+				Expect(err).ToNot(HaveOccurred(), logs.String)
+
+				container, err = docker.Container.Run.
+					WithCommand("bundle config && bundle list && bundle exec rackup -o 0.0.0.0").
+					WithEnv(map[string]string{"PORT": "9292"}).
+					WithPublish("9292").
+					WithPublishAll().
+					Execute(image.ID)
+				Expect(err).NotTo(HaveOccurred())
+
+				Eventually(container).Should(BeAvailable())
+				Eventually(container).Should(Serve(ContainSubstring("Hello world!")).OnPort(9292))
+
+				Expect(logs).To(ContainLines(
+					fmt.Sprintf("  Generating SBOM for /layers/%s/build-gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_")),
+					MatchRegexp(`      Completed in \d+(\.?\d+)*`),
+				))
+				Expect(logs).To(ContainLines(
+					fmt.Sprintf("  Generating SBOM for /layers/%s/launch-gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_")),
+					MatchRegexp(`      Completed in \d+(\.?\d+)*`),
+				))
+				Expect(logs).To(ContainLines(
+					"  Writing SBOM in the following format(s):",
+					"    application/vnd.cyclonedx+json",
+					"    application/spdx+json",
+					"    application/vnd.syft+json",
+				))
+
+				// check that all required SBOM files are present
+				Expect(filepath.Join(sbomDir, "sbom", "build", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"), "build-gems", "sbom.cdx.json")).To(BeARegularFile())
+				Expect(filepath.Join(sbomDir, "sbom", "build", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"), "build-gems", "sbom.spdx.json")).To(BeARegularFile())
+				Expect(filepath.Join(sbomDir, "sbom", "build", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"), "build-gems", "sbom.syft.json")).To(BeARegularFile())
+
+				Expect(filepath.Join(sbomDir, "sbom", "launch", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"), "launch-gems", "sbom.cdx.json")).To(BeARegularFile())
+				Expect(filepath.Join(sbomDir, "sbom", "launch", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"), "launch-gems", "sbom.spdx.json")).To(BeARegularFile())
+				Expect(filepath.Join(sbomDir, "sbom", "launch", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"), "launch-gems", "sbom.syft.json")).To(BeARegularFile())
+
+				// check an SBOM file to make sure it has an entry for a dependency from Gemfile.lock
+				contents, err := os.ReadFile(filepath.Join(sbomDir, "sbom", "launch", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"), "launch-gems", "sbom.cdx.json"))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(string(contents)).To(ContainSubstring(`"name": "sinatra"`))
 			})
 		})
 	})
