@@ -170,6 +170,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 
 			logs, err = docker.Container.Logs.Execute(container.ID)
 			Expect(err).NotTo(HaveOccurred())
+			layerPath := fmt.Sprintf("/layers/%s", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))
 			Expect(logs).To(ContainLines(
 				"clean",
 				"Set for the current user (" + layerPath + "/launch-gems/config): true",
@@ -297,7 +298,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 
 				logs, err = docker.Container.Logs.Execute(container.ID)
 				Expect(err).NotTo(HaveOccurred())
-				layerPath := fmt.Sprintf("/layers/%s", strings.ReplaceAll(settings.Buildpack.ID, "/", "_")),
+				layerPath := fmt.Sprintf("/layers/%s", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))
 				Expect(logs).To(ContainLines(
 					"retry",
 					"Set for the current user (" + layerPath + "/launch-gems/config): 5",
