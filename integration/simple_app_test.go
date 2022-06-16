@@ -98,7 +98,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			))
 			Expect(logs).To(ContainLines(
 				"  Getting the layer associated with launch-gems",
-				fmt.Sprintf("    /layers/%s/build-gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_")),
+				fmt.Sprintf("    /layers/%s/launch-gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_")),
 			))
 			Expect(logs).To(ContainLines(
 				"  Checking if the launch environment install process should run",
