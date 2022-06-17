@@ -72,7 +72,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			Expect(logs).To(ContainLines(
 				MatchRegexp(fmt.Sprintf(`%s \d+\.\d+\.\d+`, settings.Buildpack.Name)),
 				"  Getting the layer associated with build-gems",
-				"    /layers/paketo-buildpacks_bundle-install/build-gems",
+				fmt.Sprintf("    /layers/%s/build-gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_")),
 			))
 			Expect(logs).To(ContainLines(
 				"  Checking if the build environment install process should run",
@@ -98,7 +98,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			))
 			Expect(logs).To(ContainLines(
 				"  Getting the layer associated with launch-gems",
-				"    /layers/paketo-buildpacks_bundle-install/launch-gems",
+				fmt.Sprintf("    /layers/%s/launch-gems", strings.ReplaceAll(settings.Buildpack.ID, "/", "_")),
 			))
 			Expect(logs).To(ContainLines(
 				"  Checking if the launch environment install process should run",
@@ -170,25 +170,26 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 
 			logs, err = docker.Container.Logs.Execute(container.ID)
 			Expect(err).NotTo(HaveOccurred())
+			layerPath := fmt.Sprintf("/layers/%s", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))
 			Expect(logs).To(ContainLines(
 				"clean",
-				"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): true",
+				"Set for the current user (" + layerPath + "/launch-gems/config): true",
 			))
 			Expect(logs).To(ContainLines(
 				"path",
-				`Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): "/layers/paketo-buildpacks_bundle-install/launch-gems"`,
+				`Set for the current user (` + layerPath + `/launch-gems/config): "` + layerPath + `/launch-gems"`,
 			))
 			Expect(logs).To(ContainLines(
 				"retry",
-				"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): 5",
+				"Set for the current user (" + layerPath + "/launch-gems/config): 5",
 			))
 			Expect(logs).To(ContainLines(
 				"user_config",
-				`Set via BUNDLE_USER_CONFIG: "/layers/paketo-buildpacks_bundle-install/launch-gems/config"`,
+				`Set via BUNDLE_USER_CONFIG: "` + layerPath + `/launch-gems/config"`,
 			))
 			Expect(logs).To(ContainLines(
 				"without",
-				"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): [:development, :test]",
+				"Set for the current user (" + layerPath + "/launch-gems/config): [:development, :test]",
 			))
 
 			Expect(logs).To(ContainLines(
@@ -297,25 +298,27 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 
 				logs, err = docker.Container.Logs.Execute(container.ID)
 				Expect(err).NotTo(HaveOccurred())
+				layerPath := fmt.Sprintf("/layers/%s", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))
 				Expect(logs).To(ContainLines(
 					"retry",
-					"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): 5",
+					"Set for the current user (" + layerPath + "/launch-gems/config): 5",
+					
 				))
 				Expect(logs).To(ContainLines(
 					"clean",
-					`Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): "true"`,
+					`Set for the current user (` + layerPath + `/launch-gems/config): "true"`,
 				))
 				Expect(logs).To(ContainLines(
 					"path",
-					`Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): "/layers/paketo-buildpacks_bundle-install/launch-gems"`,
+					`Set for the current user (` + layerPath + `/launch-gems/config): "` + layerPath + `/launch-gems"`,
 				))
 				Expect(logs).To(ContainLines(
 					"without",
-					"Set for the current user (/layers/paketo-buildpacks_bundle-install/launch-gems/config): [:development, :test]",
+					"Set for the current user (" + layerPath + "/launch-gems/config): [:development, :test]",
 				))
 				Expect(logs).To(ContainLines(
 					"user_config",
-					`Set via BUNDLE_USER_CONFIG: "/layers/paketo-buildpacks_bundle-install/launch-gems/config"`,
+					`Set via BUNDLE_USER_CONFIG: "` + layerPath + `/launch-gems/config"`,
 				))
 
 				Expect(logs).To(ContainLines(
