@@ -138,7 +138,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			))
 
 			Expect(logs).To(ContainLines(
-				"Paketo Bundle List Buildpack",
+				"Paketo Buildpack for Bundle List",
 				"  Gems included by the bundle:",
 				MatchRegexp(`    \* coderay`),
 				MatchRegexp(`    \* diff-lcs`),
@@ -265,7 +265,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 				))
 
 				Expect(logs).To(ContainLines(
-					"Paketo Bundle List Buildpack",
+					"Paketo Buildpack for Bundle List",
 					"  Gems included by the bundle:",
 					MatchRegexp(`    \* bundler`),
 					MatchRegexp(`    \* coderay`),
