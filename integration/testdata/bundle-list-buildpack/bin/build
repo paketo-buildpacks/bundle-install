@@ -5,7 +5,7 @@ set -u
 set -o pipefail
 
 function main() {
-  echo "Paketo Bundle List Buildpack"
+  echo "Paketo Buildpack for Bundle List"
   bundle list | sed 's/^/  /'
 }
 
