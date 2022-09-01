@@ -2,7 +2,7 @@ api = "0.5"
 
 [buildpack]
   id = "paketo-buildpacks/bundle-install/bundle-list"
-  name = "Paketo Bundle List Buildpack"
+  name = "Paketo Buildpack for Bundle List"
   version = "0.0.1"
 
 [[stacks]]

@@ -173,23 +173,23 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			layerPath := fmt.Sprintf("/layers/%s", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))
 			Expect(logs).To(ContainLines(
 				"clean",
-				"Set for the current user (" + layerPath + "/launch-gems/config): true",
+				"Set for the current user ("+layerPath+"/launch-gems/config): true",
 			))
 			Expect(logs).To(ContainLines(
 				"path",
-				`Set for the current user (` + layerPath + `/launch-gems/config): "` + layerPath + `/launch-gems"`,
+				`Set for the current user (`+layerPath+`/launch-gems/config): "`+layerPath+`/launch-gems"`,
 			))
 			Expect(logs).To(ContainLines(
 				"retry",
-				"Set for the current user (" + layerPath + "/launch-gems/config): 5",
+				"Set for the current user ("+layerPath+"/launch-gems/config): 5",
 			))
 			Expect(logs).To(ContainLines(
 				"user_config",
-				`Set via BUNDLE_USER_CONFIG: "` + layerPath + `/launch-gems/config"`,
+				`Set via BUNDLE_USER_CONFIG: "`+layerPath+`/launch-gems/config"`,
 			))
 			Expect(logs).To(ContainLines(
 				"without",
-				"Set for the current user (" + layerPath + "/launch-gems/config): [:development, :test]",
+				"Set for the current user ("+layerPath+"/launch-gems/config): [:development, :test]",
 			))
 
 			Expect(logs).To(ContainLines(
@@ -301,24 +301,23 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 				layerPath := fmt.Sprintf("/layers/%s", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))
 				Expect(logs).To(ContainLines(
 					"retry",
-					"Set for the current user (" + layerPath + "/launch-gems/config): 5",
-					
+					"Set for the current user ("+layerPath+"/launch-gems/config): 5",
 				))
 				Expect(logs).To(ContainLines(
 					"clean",
-					`Set for the current user (` + layerPath + `/launch-gems/config): "true"`,
+					`Set for the current user (`+layerPath+`/launch-gems/config): "true"`,
 				))
 				Expect(logs).To(ContainLines(
 					"path",
-					`Set for the current user (` + layerPath + `/launch-gems/config): "` + layerPath + `/launch-gems"`,
+					`Set for the current user (`+layerPath+`/launch-gems/config): "`+layerPath+`/launch-gems"`,
 				))
 				Expect(logs).To(ContainLines(
 					"without",
-					"Set for the current user (" + layerPath + "/launch-gems/config): [:development, :test]",
+					"Set for the current user ("+layerPath+"/launch-gems/config): [:development, :test]",
 				))
 				Expect(logs).To(ContainLines(
 					"user_config",
-					`Set via BUNDLE_USER_CONFIG: "` + layerPath + `/launch-gems/config"`,
+					`Set via BUNDLE_USER_CONFIG: "`+layerPath+`/launch-gems/config"`,
 				))
 
 				Expect(logs).To(ContainLines(
