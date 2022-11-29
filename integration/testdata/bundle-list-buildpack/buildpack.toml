@@ -1,4 +1,4 @@
-api = "0.5"
+api = "0.7"
 
 [buildpack]
   id = "paketo-buildpacks/bundle-install/bundle-list"
@@ -7,3 +7,6 @@ api = "0.5"
 
 [[stacks]]
   id = "io.buildpacks.stacks.bionic"
+
+[[stacks]]
+  id = "io.buildpacks.stacks.jammy"
