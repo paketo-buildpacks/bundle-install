@@ -126,6 +126,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			Expect(layer.SharedEnv).To(BeEmpty())
 
 			Expect(layer.Metadata).To(Equal(map[string]interface{}{
+				"stack":        "",
 				"cache_sha":    "some-checksum",
 				"ruby_version": "some-version",
 			}))
@@ -209,6 +210,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			Expect(layer.SharedEnv).To(BeEmpty())
 
 			Expect(layer.Metadata).To(Equal(map[string]interface{}{
+				"stack":        "",
 				"cache_sha":    "some-checksum",
 				"ruby_version": "some-version",
 			}))
@@ -312,6 +314,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			Expect(buildLayer.SharedEnv).To(BeEmpty())
 
 			Expect(buildLayer.Metadata).To(Equal(map[string]interface{}{
+				"stack":        "",
 				"cache_sha":    "some-checksum",
 				"ruby_version": "some-version",
 			}))
@@ -343,6 +346,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			Expect(launchLayer.SharedEnv).To(BeEmpty())
 
 			Expect(launchLayer.Metadata).To(Equal(map[string]interface{}{
+				"stack":        "",
 				"cache_sha":    "some-checksum",
 				"ruby_version": "some-version",
 			}))
@@ -376,6 +380,7 @@ build = true
 cache = true
 
 [metadata]
+  stack = ""
 	cache_sha = "some-checksum"
 	ruby_version = "some-version"
 `), 0600)
@@ -385,6 +390,7 @@ cache = true
 launch = true
 
 [metadata]
+	stack = ""
 	cache_sha = "some-checksum"
 	ruby_version = "some-version"
 `), 0600)
@@ -417,6 +423,7 @@ launch = true
 			Expect(filepath.Join(workingDir, ".bundle", "config")).NotTo(BeAnExistingFile())
 
 			Expect(installProcess.ShouldRunCall.Receives.Metadata).To(Equal(map[string]interface{}{
+				"stack":        "",
 				"cache_sha":    "some-checksum",
 				"ruby_version": "some-version",
 			}))
@@ -432,6 +439,75 @@ launch = true
 				"",
 				fmt.Sprintf("  Reusing cached layer %s", filepath.Join(layersDir, "launch-gems")),
 			))
+		})
+	})
+
+	context("when trying to reuse a layer but the stack changes", func() {
+		it.Before(func() {
+			entryResolver.MergeLayerTypesCall.Returns.Build = true
+			entryResolver.MergeLayerTypesCall.Returns.Launch = true
+
+			installProcess.ShouldRunCall.Returns.Should = false
+
+			err := os.WriteFile(filepath.Join(layersDir, "build-gems.toml"), []byte(`
+build = true
+cache = true
+
+[metadata]
+  stack = "some-other-stack"
+	cache_sha = "some-checksum"
+	ruby_version = "some-version"
+`), 0600)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = os.WriteFile(filepath.Join(layersDir, "launch-gems.toml"), []byte(`
+launch = true
+
+[metadata]
+	stack = "some-other-stack"
+	cache_sha = "some-checksum"
+	ruby_version = "some-version"
+`), 0600)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		it("returns a result that does NOT reuse the existing layer", func() {
+			result, err := build(buildContext)
+			Expect(err).NotTo(HaveOccurred())
+
+			layers := result.Layers
+			Expect(layers).To(HaveLen(2))
+
+			buildLayer := layers[0]
+			Expect(buildLayer.Name).To(Equal("build-gems"))
+			Expect(buildLayer.Path).To(Equal(filepath.Join(layersDir, "build-gems")))
+
+			Expect(buildLayer.Build).To(BeTrue())
+			Expect(buildLayer.Launch).To(BeFalse())
+			Expect(buildLayer.Cache).To(BeTrue())
+
+			launchLayer := layers[1]
+			Expect(launchLayer.Name).To(Equal("launch-gems"))
+			Expect(launchLayer.Path).To(Equal(filepath.Join(layersDir, "launch-gems")))
+
+			Expect(launchLayer.Build).To(BeFalse())
+			Expect(launchLayer.Launch).To(BeTrue())
+			Expect(launchLayer.Cache).To(BeFalse())
+
+			Expect(filepath.Join(workingDir, ".bundle", "config")).NotTo(BeAnExistingFile())
+
+			Expect(installProcess.ShouldRunCall.Receives.Metadata).To(Equal(map[string]interface{}{
+				"stack":        "some-other-stack",
+				"cache_sha":    "some-checksum",
+				"ruby_version": "some-version",
+			}))
+			Expect(installProcess.ShouldRunCall.Receives.WorkingDir).To(Equal(workingDir))
+			Expect(installProcess.ExecuteCall.CallCount).To(Equal(2))
+
+			Expect(buffer.String()).To(ContainSubstring("Some Buildpack some-version"))
+			Expect(buffer.String()).To(ContainSubstring("Stack upgraded from some-other-stack to , clearing cached gems"))
+			Expect(buffer.String()).To(ContainSubstring("Executing build environment install process"))
+			Expect(buffer.String()).To(ContainSubstring("Executing launch environment install process"))
 		})
 	})
 

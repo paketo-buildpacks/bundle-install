@@ -102,6 +102,19 @@ func Build(
 				return packit.BuildResult{}, err
 			}
 
+			stack, ok := layer.Metadata["stack"]
+			if ok && stack.(string) != context.Stack {
+				logger.Process("Stack upgraded from %s to %s, clearing cached gems", stack.(string), context.Stack)
+				layer, err = layer.Reset()
+				if err != nil {
+					return packit.BuildResult{}, err
+				}
+
+				should = true
+				layer.Build = true
+				layer.Cache = true
+			}
+
 			if should {
 				logger.Process("Executing build environment install process")
 
@@ -120,6 +133,7 @@ func Build(
 
 				layer.BuildEnv.Default("BUNDLE_USER_CONFIG", filepath.Join(layer.Path, "config"))
 				layer.Metadata = map[string]interface{}{
+					"stack":        context.Stack,
 					"cache_sha":    checksum,
 					"ruby_version": rubyVersion,
 				}
@@ -169,6 +183,17 @@ func Build(
 				return packit.BuildResult{}, err
 			}
 
+			stack, ok := layer.Metadata["stack"]
+			if ok && stack.(string) != context.Stack {
+				logger.Process("Stack upgraded from %s to %s, clearing cached gems", stack.(string), context.Stack)
+				layer, err = layer.Reset()
+				if err != nil {
+					return packit.BuildResult{}, err
+				}
+				should = true
+				layer.Launch = true
+			}
+
 			if should {
 				logger.Process("Executing launch environment install process")
 
@@ -200,6 +225,7 @@ func Build(
 
 				layer.LaunchEnv.Default("BUNDLE_USER_CONFIG", filepath.Join(layer.Path, "config"))
 				layer.Metadata = map[string]interface{}{
+					"stack":        context.Stack,
 					"cache_sha":    checksum,
 					"ruby_version": rubyVersion,
 				}
@@ -227,7 +253,6 @@ func Build(
 				logger.Process("Reusing cached layer %s", layer.Path)
 				logger.Break()
 			}
-
 			layers = append(layers, layer)
 		}
 

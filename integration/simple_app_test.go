@@ -137,14 +137,16 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 				"",
 			))
 
+			Expect(logs).To(ContainLines("Paketo Buildpack for Bundle List"))
 			Expect(logs).To(ContainLines(
-				"Paketo Buildpack for Bundle List",
 				"  Gems included by the bundle:",
 				MatchRegexp(`    \* coderay`),
 				MatchRegexp(`    \* diff-lcs`),
 				MatchRegexp(`    \* method_source`),
 				MatchRegexp(`    \* mustermann`),
+				MatchRegexp(`    \* nio4r`),
 				MatchRegexp(`    \* pry`),
+				MatchRegexp(`    \* puma`),
 				MatchRegexp(`    \* rack`),
 				MatchRegexp(`    \* rack-protection`),
 				MatchRegexp(`    \* rspec`),
@@ -173,7 +175,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			layerPath := fmt.Sprintf("/layers/%s", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))
 			Expect(logs).To(ContainLines(
 				"clean",
-				"Set for the current user ("+layerPath+"/launch-gems/config): true",
+				`Set for the current user (`+layerPath+`/launch-gems/config): "true"`,
 			))
 			Expect(logs).To(ContainLines(
 				"path",
@@ -195,13 +197,14 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			Expect(logs).To(ContainLines(
 				"Gems included by the bundle:",
 				MatchRegexp(`  \* mustermann`),
+				MatchRegexp(`  \* nio4r`),
+				MatchRegexp(`  \* puma`),
 				MatchRegexp(`  \* rack`),
 				MatchRegexp(`  \* rack-protection`),
 				MatchRegexp(`  \* ruby2_keywords`),
 				MatchRegexp(`  \* sinatra`),
 				MatchRegexp(`  \* tilt`),
 			))
-
 			Expect(logs).NotTo(ContainLines(MatchRegexp(`\* coderay`)))
 			Expect(logs).NotTo(ContainLines(MatchRegexp(`\* diff-lcs`)))
 			Expect(logs).NotTo(ContainLines(MatchRegexp(`\* method_source`)))
