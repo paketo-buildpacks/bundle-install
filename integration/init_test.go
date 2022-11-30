@@ -46,12 +46,15 @@ var settings struct {
 	}
 }
 
+var builder occam.Builder
+
 func TestIntegration(t *testing.T) {
 	// Do not truncate Gomega matcher output
 	// The buildpack output text can be large and we often want to see all of it.
 	format.MaxLength = 0
 
 	Expect := NewWithT(t).Expect
+	pack := occam.NewPack()
 
 	file, err := os.Open("../integration.json")
 	Expect(err).NotTo(HaveOccurred())
@@ -104,9 +107,19 @@ func TestIntegration(t *testing.T) {
 
 	SetDefaultEventuallyTimeout(30 * time.Second)
 
+	builder, err = pack.Builder.Inspect.Execute()
+	Expect(err).NotTo(HaveOccurred())
+
 	suite := spec.New("Integration", spec.Report(report.Terminal{}), spec.Parallel())
-	suite("Layer Reuse", testLayerReuse)
-	suite("OfflineApp", testOffline)
-	suite("SimpleApp", testSimpleApp)
+	// This test will only run on the Bionic full stack, because stack upgrade
+	// failures have only been observed when upgrading from the Bionic full stack.
+	// All other tests will run against the Bionic base stack
+	if builder.BuilderName == "paketobuildpacks/builder:buildpackless-full" {
+		suite("StackUpgrade", testStackUpgrade)
+	} else {
+		suite("LayerReuse", testLayerReuse)
+		suite("OfflineApp", testOffline)
+		suite("SimpleApp", testSimpleApp)
+	}
 	suite.Run(t)
 }
