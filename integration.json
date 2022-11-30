@@ -1,4 +1,5 @@
 {
+  "builders" : ["paketobuildpacks/builder:buildpackless-base", "paketobuildpacks/builder:buildpackless-full"],
   "bundler": "github.com/paketo-buildpacks/bundler",
   "mri": "github.com/paketo-buildpacks/mri"
 }
