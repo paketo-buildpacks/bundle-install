@@ -3,12 +3,13 @@ package bundleinstall
 import (
 	"bytes"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
-	"github.com/paketo-buildpacks/packit/v2/fs"
+	pfs "github.com/paketo-buildpacks/packit/v2/fs"
 	"github.com/paketo-buildpacks/packit/v2/pexec"
 	"github.com/paketo-buildpacks/packit/v2/scribe"
 )
@@ -115,7 +116,7 @@ func (ip BundleInstallProcess) ShouldRun(metadata map[string]interface{}, workin
 // During the execution of the "bundle install" process, Execute will have
 // configured the command to use any locally vendored cache, enabling offline
 // execution.
-func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[string]string) error {
+func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[string]string, keepBuildFiles bool) error {
 	ip.logger.Debug.Subprocess("Setting up bundle install config paths:")
 
 	localConfigPath := filepath.Join(workingDir, ".bundle", "config")
@@ -131,25 +132,25 @@ func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[
 		return err
 	}
 
-	if _, err := os.Stat(localConfigPath); err == nil {
-		err := os.MkdirAll(layerPath, os.ModePerm)
-		if err != nil {
-			return err
-		}
+	err = os.MkdirAll(layerPath, os.ModePerm)
+	if err != nil {
+		return err
+	}
 
+	if _, err := os.Stat(localConfigPath); err == nil {
 		if _, err := os.Stat(backupConfigPath); err == nil {
-			err = fs.Copy(backupConfigPath, localConfigPath)
+			err = pfs.Copy(backupConfigPath, localConfigPath)
 			if err != nil {
 				return err
 			}
 		}
 
-		err = fs.Copy(localConfigPath, globalConfigPath)
+		err = pfs.Copy(localConfigPath, globalConfigPath)
 		if err != nil {
 			return err
 		}
 
-		err = fs.Copy(localConfigPath, backupConfigPath)
+		err = pfs.Copy(localConfigPath, backupConfigPath)
 		if err != nil {
 			return err
 		}
@@ -166,7 +167,6 @@ func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[
 	sort.Strings(keys)
 
 	for _, key := range keys {
-		// buffer := bytes.NewBuffer(nil)
 		args := []string{"config", "--global", key, config[key]}
 
 		ip.logger.Subprocess("Running 'bundle %s'", strings.Join(args, " "))
@@ -226,6 +226,27 @@ func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[
 	})
 	if err != nil {
 		return fmt.Errorf("failed to execute bundle install output:\n%s\nerror: %s", buffer.String(), err)
+	}
+
+	if !keepBuildFiles {
+		err = filepath.Walk(layerPath, func(path string, info fs.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			switch filepath.Base(path) {
+			case "Makefile", "mkmf.log", "gem_make.out":
+				err = os.Remove(path)
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("failed to cleanup gem extension build files: %w", err)
+		}
 	}
 
 	return nil

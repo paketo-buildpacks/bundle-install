@@ -20,7 +20,7 @@ import (
 // build process.
 type InstallProcess interface {
 	ShouldRun(metadata map[string]interface{}, workingDir string) (should bool, checksum string, rubyVersion string, err error)
-	Execute(workingDir, layerPath string, config map[string]string) error
+	Execute(workingDir, layerPath string, config map[string]string, keepBuildFiles bool) error
 }
 
 // EntryResolver defines the interface for determining what phases of the
@@ -75,6 +75,7 @@ func Build(
 	sbomGenerator SBOMGenerator,
 	logger scribe.Emitter,
 	clock chronos.Clock,
+	environment Environment,
 ) packit.BuildFunc {
 	return func(context packit.BuildContext) (packit.BuildResult, error) {
 		logger.Title("%s %s", context.BuildpackInfo.Name, context.BuildpackInfo.Version)
@@ -122,7 +123,7 @@ func Build(
 					return installProcess.Execute(context.WorkingDir, layer.Path, map[string]string{
 						"path":  layer.Path,
 						"clean": "true",
-					})
+					}, environment.KeepGemExtensionBuildFiles)
 				})
 				if err != nil {
 					return packit.BuildResult{}, err
@@ -214,7 +215,7 @@ func Build(
 						"path":    layer.Path,
 						"without": "development:test",
 						"clean":   "true",
-					})
+					}, environment.KeepGemExtensionBuildFiles)
 				})
 				if err != nil {
 					return packit.BuildResult{}, err

@@ -223,7 +223,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 	context("Execute", func() {
 		context("when there is no vendor/cache directory present", func() {
 			it("runs the bundle install process", func() {
-				err := installProcess.Execute(workingDir, layerPath, map[string]string{"path": "some-dir"})
+				err := installProcess.Execute(workingDir, layerPath, map[string]string{"path": "some-dir"}, false)
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(executions).To(HaveLen(3))
@@ -245,7 +245,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 			})
 
 			it("runs the bundle install process", func() {
-				err := installProcess.Execute(workingDir, layerPath, map[string]string{"clean": "true"})
+				err := installProcess.Execute(workingDir, layerPath, map[string]string{"clean": "true"}, false)
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(executions).To(HaveLen(3))
@@ -272,7 +272,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 			it("runs the bundle install process", func() {
 				err := installProcess.Execute(workingDir, layerPath, map[string]string{
 					"without": "development:test",
-				})
+				}, false)
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(executions).To(HaveLen(3))
@@ -289,7 +289,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 			})
 
 			it("copies that config into the global config", func() {
-				err := installProcess.Execute(workingDir, layerPath, nil)
+				err := installProcess.Execute(workingDir, layerPath, nil, false)
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(executions).To(HaveLen(2))
@@ -302,7 +302,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 			})
 
 			it("makes a backup of that local config", func() {
-				err := installProcess.Execute(workingDir, layerPath, nil)
+				err := installProcess.Execute(workingDir, layerPath, nil, false)
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(executions).To(HaveLen(2))
@@ -320,7 +320,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				})
 
 				it("replaces the local config with the backup", func() {
-					err := installProcess.Execute(workingDir, layerPath, nil)
+					err := installProcess.Execute(workingDir, layerPath, nil, false)
 					Expect(err).NotTo(HaveOccurred())
 
 					Expect(executions).To(HaveLen(2))
@@ -338,6 +338,49 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 			})
 		})
 
+		context("when there are extension build files", func() {
+			var path string
+
+			it.Before(func() {
+				path = filepath.Join(layerPath, "ruby", "3.2.0", "extensions", "x86_64-linux", "3.2.0-static")
+
+				Expect(os.MkdirAll(filepath.Join(path, "some-gem"), os.ModePerm)).To(Succeed())
+				Expect(os.WriteFile(filepath.Join(path, "some-gem", "gem_make.out"), nil, 0600)).To(Succeed())
+				Expect(os.WriteFile(filepath.Join(path, "some-gem", "Makefile"), nil, 0600)).To(Succeed())
+				Expect(os.WriteFile(filepath.Join(path, "some-gem", "some-gem.gem"), nil, 0600)).To(Succeed())
+
+				Expect(os.MkdirAll(filepath.Join(path, "other-gem"), os.ModePerm)).To(Succeed())
+				Expect(os.WriteFile(filepath.Join(path, "other-gem", "mkmf.log"), nil, 0600)).To(Succeed())
+				Expect(os.WriteFile(filepath.Join(path, "other-gem", "other-gem.gem"), nil, 0600)).To(Succeed())
+			})
+
+			it("cleans them up", func() {
+				err := installProcess.Execute(workingDir, layerPath, nil, false)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(filepath.Join(path, "some-gem", "some-gem.gem")).To(BeAnExistingFile())
+				Expect(filepath.Join(path, "other-gem", "other-gem.gem")).To(BeAnExistingFile())
+
+				Expect(filepath.Join(path, "some-gem", "gem_make.out")).NotTo(BeAnExistingFile())
+				Expect(filepath.Join(path, "some-gem", "Makefile")).NotTo(BeAnExistingFile())
+				Expect(filepath.Join(path, "other-gem", "mkmf.log")).NotTo(BeAnExistingFile())
+			})
+
+			context("when the BP_KEEP_GEM_EXTENSION_BUILD_FILES env var is set", func() {
+				it("leaves those files in place", func() {
+					err := installProcess.Execute(workingDir, layerPath, nil, true)
+					Expect(err).NotTo(HaveOccurred())
+
+					Expect(filepath.Join(path, "some-gem", "some-gem.gem")).To(BeAnExistingFile())
+					Expect(filepath.Join(path, "other-gem", "other-gem.gem")).To(BeAnExistingFile())
+
+					Expect(filepath.Join(path, "some-gem", "gem_make.out")).To(BeAnExistingFile())
+					Expect(filepath.Join(path, "some-gem", "Makefile")).To(BeAnExistingFile())
+					Expect(filepath.Join(path, "other-gem", "mkmf.log")).To(BeAnExistingFile())
+				})
+			})
+		})
+
 		context("failure cases", func() {
 			context("when the config cannot be copied into the layer", func() {
 				it.Before(func() {
@@ -346,7 +389,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				})
 
 				it("returns an error", func() {
-					err := installProcess.Execute(workingDir, layerPath, nil)
+					err := installProcess.Execute(workingDir, layerPath, nil, false)
 					Expect(err).To(MatchError(ContainSubstring("permission denied")))
 				})
 			})
@@ -366,7 +409,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				})
 
 				it("prints the execution output and returns an error", func() {
-					err := installProcess.Execute(workingDir, layerPath, map[string]string{"path": "some-dir"})
+					err := installProcess.Execute(workingDir, layerPath, map[string]string{"path": "some-dir"}, false)
 					Expect(err).To(MatchError(ContainSubstring("failed to execute bundle config")))
 					Expect(err).To(MatchError(ContainSubstring("bundle config path failed")))
 				})
@@ -382,7 +425,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				})
 
 				it("runs the bundle install process", func() {
-					err := installProcess.Execute(workingDir, layerPath, map[string]string{"path": "some-dir"})
+					err := installProcess.Execute(workingDir, layerPath, map[string]string{"path": "some-dir"}, false)
 					Expect(err).To(MatchError(ContainSubstring("permission denied")))
 				})
 			})
@@ -402,9 +445,30 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				})
 
 				it("prints the execution output and returns an error", func() {
-					err := installProcess.Execute(workingDir, layerPath, map[string]string{"path": "some-dir"})
+					err := installProcess.Execute(workingDir, layerPath, map[string]string{"path": "some-dir"}, false)
 					Expect(err).To(MatchError(ContainSubstring("failed to execute bundle install")))
 					Expect(err).To(MatchError(ContainSubstring("bundle install failed")))
+				})
+			})
+
+			context("when some extension build file cannot be cleaned up", func() {
+				var path string
+
+				it.Before(func() {
+					path = filepath.Join(layerPath, "ruby", "3.2.0", "extensions", "x86_64-linux", "3.2.0-static")
+					Expect(os.MkdirAll(filepath.Join(path, "some-gem"), os.ModePerm)).To(Succeed())
+					Expect(os.WriteFile(filepath.Join(path, "some-gem", "gem_make.out"), nil, 0600)).To(Succeed())
+					Expect(os.Chmod(filepath.Join(path, "some-gem"), 0000)).To(Succeed())
+				})
+
+				it.After(func() {
+					Expect(os.Chmod(filepath.Join(path, "some-gem"), os.ModePerm)).To(Succeed())
+				})
+
+				it("returns an error", func() {
+					err := installProcess.Execute(workingDir, layerPath, nil, false)
+					Expect(err).To(MatchError(ContainSubstring("failed to cleanup gem extension build files")))
+					Expect(err).To(MatchError(ContainSubstring("permission denied")))
 				})
 			})
 		})
