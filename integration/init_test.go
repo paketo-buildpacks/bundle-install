@@ -116,10 +116,12 @@ func TestIntegration(t *testing.T) {
 	// All other tests will run against the Bionic base stack
 	if builder.BuilderName == "paketobuildpacks/builder:buildpackless-full" {
 		suite("StackUpgrade", testStackUpgrade)
-	} else {
-		suite("LayerReuse", testLayerReuse)
-		suite("OfflineApp", testOffline)
-		suite("SimpleApp", testSimpleApp)
 	}
+
+	suite("LayerReuse", testLayerReuse)
+	suite("OfflineApp", testOffline)
+	suite("ReproducibleBuilds", testReproducibleBuilds)
+	suite("SimpleApp", testSimpleApp)
+
 	suite.Run(t)
 }

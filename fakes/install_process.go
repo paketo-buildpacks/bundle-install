@@ -7,14 +7,15 @@ type InstallProcess struct {
 		mutex     sync.Mutex
 		CallCount int
 		Receives  struct {
-			WorkingDir string
-			LayerPath  string
-			Config     map[string]string
+			WorkingDir     string
+			LayerPath      string
+			Config         map[string]string
+			KeepBuildFiles bool
 		}
 		Returns struct {
 			Error error
 		}
-		Stub func(string, string, map[string]string) error
+		Stub func(string, string, map[string]string, bool) error
 	}
 	ShouldRunCall struct {
 		mutex     sync.Mutex
@@ -35,15 +36,16 @@ type InstallProcess struct {
 	}
 }
 
-func (f *InstallProcess) Execute(param1 string, param2 string, param3 map[string]string) error {
+func (f *InstallProcess) Execute(param1 string, param2 string, param3 map[string]string, param4 bool) error {
 	f.ExecuteCall.mutex.Lock()
 	defer f.ExecuteCall.mutex.Unlock()
 	f.ExecuteCall.CallCount++
 	f.ExecuteCall.Receives.WorkingDir = param1
 	f.ExecuteCall.Receives.LayerPath = param2
 	f.ExecuteCall.Receives.Config = param3
+	f.ExecuteCall.Receives.KeepBuildFiles = param4
 	if f.ExecuteCall.Stub != nil {
-		return f.ExecuteCall.Stub(param1, param2, param3)
+		return f.ExecuteCall.Stub(param1, param2, param3, param4)
 	}
 	return f.ExecuteCall.Returns.Error
 }

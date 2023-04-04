@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"log"
 	"os"
 
 	bundleinstall "github.com/paketo-buildpacks/bundle-install"
@@ -22,6 +24,11 @@ func (f Generator) Generate(dir string) (sbom.SBOM, error) {
 func main() {
 	logEmitter := scribe.NewEmitter(os.Stdout).WithLevel(os.Getenv("BP_LOG_LEVEL"))
 
+	environment, err := bundleinstall.ParseEnvironment(os.Environ())
+	if err != nil {
+		log.Fatal(fmt.Errorf("failed to parse environment configuration: %w", err))
+	}
+
 	packit.Run(
 		bundleinstall.Detect(
 			bundleinstall.NewGemfileParser(),
@@ -39,6 +46,7 @@ func main() {
 			Generator{},
 			logEmitter,
 			chronos.DefaultClock,
+			environment,
 		),
 	)
 }

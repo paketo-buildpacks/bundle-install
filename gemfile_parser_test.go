@@ -3,7 +3,6 @@ package bundleinstall_test
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -27,7 +26,7 @@ func testGemfileParser(t *testing.T, context spec.G, it spec.S) {
 	)
 
 	it.Before(func() {
-		file, err := ioutil.TempFile("", "Gemfile")
+		file, err := os.CreateTemp("", "Gemfile")
 		Expect(err).NotTo(HaveOccurred())
 		defer file.Close()
 
@@ -68,7 +67,7 @@ func testGemfileParser(t *testing.T, context spec.G, it spec.S) {
 				for _, v := range versions {
 					expectedVersion := strings.Trim(v, `"'`)
 
-					Expect(ioutil.WriteFile(path, []byte(fmt.Sprintf(GEMFILE_TEMPLATE, v)), 0644)).To(Succeed())
+					Expect(os.WriteFile(path, []byte(fmt.Sprintf(GEMFILE_TEMPLATE, v)), 0644)).To(Succeed())
 
 					version, err := parser.ParseVersion(path)
 					Expect(err).NotTo(HaveOccurred())
