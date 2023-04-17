@@ -183,6 +183,7 @@ func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[
 	}
 
 	buffer := bytes.NewBuffer(nil)
+	errorBuffer := bytes.NewBuffer(nil)
 	args := []string{"config", "--global", "cache_path", "--parseable"}
 
 	ip.logger.Subprocess("Running 'bundle %s'", strings.Join(args, " "))
@@ -190,11 +191,11 @@ func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[
 	err = ip.executable.Execute(pexec.Execution{
 		Args:   args,
 		Stdout: buffer,
-		Stderr: buffer,
+		Stderr: errorBuffer,
 		Env:    env,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to execute bundle config output:\n%s\nerror: %s", buffer.String(), err)
+		return fmt.Errorf("failed to execute bundle config output:\n%s\nerror: %s", errorBuffer.String(), err)
 	}
 
 	cachePath := filepath.Join("vendor", "cache")
