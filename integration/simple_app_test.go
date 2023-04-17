@@ -224,6 +224,8 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 				source, err = occam.Source(filepath.Join("testdata", "bundler_version_1_17"))
 				Expect(err).NotTo(HaveOccurred())
 
+				// must build with MRI 3.0 or 3.1, as some Bundler 1.17 code is not compatible with Ruby 3.2
+				// for example: `/usr/local/bundle/gems/bundler-1.17.3/lib/bundler/shared_helpers.rb:118: warning: Pathname#untaint is deprecated and will be removed in Ruby 3.2.`
 				image, logs, err = pack.WithVerbose().Build.
 					WithBuildpacks(
 						settings.Buildpacks.MRI.Online,
@@ -231,6 +233,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 						settings.Buildpacks.BundleInstall.Online,
 						settings.Buildpacks.BundleList.Online,
 					).
+					WithEnv(map[string]string{"BP_MRI_VERSION": "3.1"}).
 					WithPullPolicy("never").
 					Execute(name, source)
 				Expect(err).NotTo(HaveOccurred())
@@ -269,13 +272,17 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 
 				Expect(logs).To(ContainLines(
 					"Paketo Buildpack for Bundle List",
+				))
+				Expect(logs).To(ContainLines(
 					"  Gems included by the bundle:",
 					MatchRegexp(`    \* bundler`),
 					MatchRegexp(`    \* coderay`),
 					MatchRegexp(`    \* diff-lcs`),
 					MatchRegexp(`    \* method_source`),
 					MatchRegexp(`    \* mustermann`),
+					MatchRegexp(`    \* nio4r`),
 					MatchRegexp(`    \* pry`),
+					MatchRegexp(`    \* puma`),
 					MatchRegexp(`    \* rack`),
 					MatchRegexp(`    \* rack-protection`),
 					MatchRegexp(`    \* rspec`),
@@ -327,6 +334,8 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 					"Gems included by the bundle:",
 					MatchRegexp(`  \* bundler`),
 					MatchRegexp(`  \* mustermann`),
+					MatchRegexp(`  \* nio4r`),
+					MatchRegexp(`  \* puma`),
 					MatchRegexp(`  \* rack`),
 					MatchRegexp(`  \* rack-protection`),
 					MatchRegexp(`  \* ruby2_keywords`),
