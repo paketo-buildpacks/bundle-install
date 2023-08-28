@@ -39,8 +39,14 @@ func testStackUpgrade(t *testing.T, context spec.G, it spec.S) {
 		imageIDs = map[string]struct{}{}
 		containerIDs = map[string]struct{}{}
 
-		Expect(docker.Pull.Execute("paketobuildpacks/builder-jammy-buildpackless-base:latest")).To(Succeed())
-		Expect(docker.Pull.Execute("paketobuildpacks/run-jammy-base:latest")).To(Succeed())
+		// pull images associated with the jammy builder incase they haven't been pulled yet
+		Expect(docker.Pull.Execute("paketobuildpacks/builder-jammy-buildpackless-full")).To(Succeed())
+		Expect(docker.Pull.Execute("paketobuildpacks/run-jammy-full")).To(Succeed())
+		jammyBuilder, err := pack.Builder.Inspect.Execute("paketobuildpacks/builder-jammy-buildpackless-full")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(docker.Pull.Execute(
+			fmt.Sprintf("%s:%s", "buildpacksio/lifecycle", jammyBuilder.RemoteInfo.Lifecycle.Version),
+		)).To(Succeed())
 	})
 
 	it.After(func() {
@@ -52,8 +58,8 @@ func testStackUpgrade(t *testing.T, context spec.G, it spec.S) {
 			Expect(docker.Image.Remove.Execute(id)).To(Succeed())
 		}
 
-		Expect(docker.Image.Remove.Execute("paketobuildpacks/builder-jammy-buildpackless-base:latest")).To(Succeed())
-		Expect(docker.Image.Remove.Execute("paketobuildpacks/run-jammy-base:latest")).To(Succeed())
+		Expect(docker.Image.Remove.Execute("paketobuildpacks/builder-jammy-buildpackless-full:latest")).To(Succeed())
+		Expect(docker.Image.Remove.Execute("paketobuildpacks/run-jammy-full:latest")).To(Succeed())
 
 		Expect(docker.Volume.Remove.Execute(occam.CacheVolumeNames(name))).To(Succeed())
 		Expect(os.RemoveAll(source)).To(Succeed())
@@ -105,7 +111,7 @@ func testStackUpgrade(t *testing.T, context spec.G, it spec.S) {
 			Eventually(firstContainer).Should(BeAvailable())
 
 			// Second pack build, upgrade stack image
-			secondImage, logs, err = build.WithBuilder("paketobuildpacks/builder-jammy-buildpackless-base").Execute(name, source)
+			secondImage, logs, err = build.WithBuilder("paketobuildpacks/builder-jammy-buildpackless-full").Execute(name, source)
 			Expect(err).NotTo(HaveOccurred())
 
 			imageIDs[secondImage.ID] = struct{}{}
