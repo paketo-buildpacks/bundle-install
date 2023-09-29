@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
-	github.com/onsi/gomega v1.27.10
+	github.com/onsi/gomega v1.28.0
 	github.com/paketo-buildpacks/occam v0.17.0
 	github.com/paketo-buildpacks/packit/v2 v2.11.0
 	github.com/pelletier/go-toml v1.9.5
