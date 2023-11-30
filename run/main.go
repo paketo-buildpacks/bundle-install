@@ -32,6 +32,8 @@ func main() {
 	packit.Run(
 		bundleinstall.Detect(
 			bundleinstall.NewGemfileParser(),
+			bundleinstall.NewRubyVersionFileParser(),
+			logEmitter,
 		),
 		bundleinstall.Build(
 			draft.NewPlanner(),

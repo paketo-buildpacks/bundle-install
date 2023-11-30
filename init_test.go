@@ -14,6 +14,7 @@ func TestUnitBundleInstall(t *testing.T) {
 	suite("Detect", testDetect)
 	suite("Environment", testEnvironment)
 	suite("GemfileParser", testGemfileParser)
+	suite("RubyVersionFileParser", testRubyVersionFileParser)
 	suite("RubyVersionResolver", testRubyVersionResolver)
 	suite.Run(t)
 }
