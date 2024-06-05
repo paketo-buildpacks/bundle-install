@@ -16,6 +16,8 @@ func NewGemfileParser() GemfileParser {
 	return GemfileParser{}
 }
 
+const versionNumberExpression = `\d+(\.\d+)?(\.\d+)?`
+
 // ParseVersion scans the Gemfile for a Ruby version specification.
 func (p GemfileParser) ParseVersion(path string) (string, error) {
 	file, err := os.Open(path)
@@ -25,8 +27,7 @@ func (p GemfileParser) ParseVersion(path string) (string, error) {
 
 	quotes := `["']`
 	versionOperators := `~>|<|>|<=|>=|=`
-	versionNumber := `\d+(\.\d+)?(\.\d+)?`
-	expression := fmt.Sprintf(`ruby %s((%s)?\s*%s)%s`, quotes, versionOperators, versionNumber, quotes)
+	expression := fmt.Sprintf(`ruby %s((%s)?\s*%s)%s`, quotes, versionOperators, versionNumberExpression, quotes)
 	re := regexp.MustCompile(expression)
 
 	scanner := bufio.NewScanner(file)

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/paketo-buildpacks/packit/v2"
+	"github.com/paketo-buildpacks/packit/v2/scribe"
 )
 
 //go:generate faux --interface VersionParser --output fakes/version_parser.go
@@ -25,6 +26,8 @@ type BuildPlanMetadata struct {
 	Launch        bool   `toml:"launch"`
 }
 
+const rubyVersionFile = ".ruby-version"
+
 // Detect will return a packit.DetectFunc that will be invoked during the
 // detect phase of the buildpack lifecycle.
 //
@@ -35,7 +38,7 @@ type BuildPlanMetadata struct {
 // dependency, and requiring the "bundler" and "mri" dependencies. If the
 // Gemfile contains a specified Ruby version, the "mri" build plan entry will
 // include a specific Ruby version contraint.
-func Detect(gemfileParser VersionParser) packit.DetectFunc {
+func Detect(gemfileParser, rubyVersionFileParser VersionParser, logger scribe.Emitter) packit.DetectFunc {
 	return func(context packit.DetectContext) (packit.DetectResult, error) {
 		mriVersion, err := gemfileParser.ParseVersion(filepath.Join(context.WorkingDir, "Gemfile"))
 		if err != nil {
@@ -47,6 +50,15 @@ func Detect(gemfileParser VersionParser) packit.DetectFunc {
 		var versionSource string
 		if mriVersion != "" {
 			versionSource = "Gemfile"
+		} else {
+			// fall back to .ruby-version file
+			rubyVersion, err := rubyVersionFileParser.ParseVersion(rubyVersionFile)
+			if err != nil {
+				logger.Subprocess("WARNING: Could not parse the .ruby-version file, as a result no Ruby version has been specified")
+			} else if rubyVersion != "" {
+				mriVersion = rubyVersion
+				versionSource = rubyVersionFile
+			}
 		}
 
 		return packit.DetectResult{
