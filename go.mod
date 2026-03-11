@@ -1,8 +1,6 @@
 module github.com/paketo-buildpacks/bundle-install
 
-go 1.21
-
-toolchain go1.22.5
+go 1.26.1
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
