@@ -1,5 +1,5 @@
 {
-  "builders" : ["paketobuildpacks/builder:buildpackless-base", "paketobuildpacks/builder:buildpackless-full"],
+  "builders" : ["index.docker.io/paketobuildpacks/builder-jammy-buildpackless-base:latest"],
   "bundler": "github.com/paketo-buildpacks/bundler",
   "mri": "github.com/paketo-buildpacks/mri"
 }
