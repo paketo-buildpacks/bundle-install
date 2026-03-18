@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -73,6 +74,7 @@ func TestIntegration(t *testing.T) {
 	Expect(file.Close()).To(Succeed())
 
 	buildpackStore := occam.NewBuildpackStore()
+	targetedBuildpackStore := buildpackStore.WithTarget("linux/" + runtime.GOARCH)
 
 	settings.Buildpacks.BundleInstall.Online, err = buildpackStore.Get.
 		WithVersion("1.2.3").
@@ -85,20 +87,20 @@ func TestIntegration(t *testing.T) {
 		Execute(root)
 	Expect(err).NotTo(HaveOccurred())
 
-	settings.Buildpacks.Bundler.Online, err = buildpackStore.Get.
+	settings.Buildpacks.Bundler.Online, err = targetedBuildpackStore.Get.
 		Execute(settings.Config.Bundler)
 	Expect(err).NotTo(HaveOccurred())
 
-	settings.Buildpacks.Bundler.Offline, err = buildpackStore.Get.
+	settings.Buildpacks.Bundler.Offline, err = targetedBuildpackStore.Get.
 		WithOfflineDependencies().
 		Execute(settings.Config.Bundler)
 	Expect(err).NotTo(HaveOccurred())
 
-	settings.Buildpacks.MRI.Online, err = buildpackStore.Get.
+	settings.Buildpacks.MRI.Online, err = targetedBuildpackStore.Get.
 		Execute(settings.Config.MRI)
 	Expect(err).NotTo(HaveOccurred())
 
-	settings.Buildpacks.MRI.Offline, err = buildpackStore.Get.
+	settings.Buildpacks.MRI.Offline, err = targetedBuildpackStore.Get.
 		WithOfflineDependencies().
 		Execute(settings.Config.MRI)
 	Expect(err).NotTo(HaveOccurred())
