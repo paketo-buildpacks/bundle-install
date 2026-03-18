@@ -262,7 +262,8 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 					executions = append(executions, execution)
 
 					if strings.Contains(strings.Join(execution.Args, " "), "config --global cache_path --parseable") {
-						fmt.Fprintf(execution.Stdout, "cache_path=other_dir/other_cache")
+							_, err := fmt.Fprintf(execution.Stdout, "cache_path=other_dir/other_cache")
+							Expect(err).NotTo(HaveOccurred())
 					}
 
 					return nil
@@ -398,8 +399,10 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				it.Before(func() {
 					executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
 						if strings.Contains(strings.Join(execution.Args, " "), "config --global path") {
-							fmt.Fprint(execution.Stdout, "stdout output")
-							fmt.Fprint(execution.Stderr, "stderr output")
+							_, err := fmt.Fprint(execution.Stdout, "stdout output")
+							Expect(err).NotTo(HaveOccurred())
+							_, err = fmt.Fprint(execution.Stderr, "stderr output")
+							Expect(err).NotTo(HaveOccurred())
 
 							return errors.New("bundle config path failed")
 						}
@@ -434,8 +437,10 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				it.Before(func() {
 					executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
 						if strings.Contains(strings.Join(execution.Args, " "), "install") {
-							fmt.Fprint(execution.Stdout, "stdout output")
-							fmt.Fprint(execution.Stderr, "stderr output")
+							_, err := fmt.Fprint(execution.Stdout, "stdout output")
+							Expect(err).NotTo(HaveOccurred())
+							_, err = fmt.Fprint(execution.Stderr, "stderr output")
+							Expect(err).NotTo(HaveOccurred())
 
 							return errors.New("bundle install failed")
 						}

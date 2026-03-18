@@ -26,7 +26,8 @@ func testRubyVersionResolver(t *testing.T, context spec.G, it spec.S) {
 		it.Before(func() {
 			executable = &fakes.Executable{}
 			executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
-				fmt.Fprintf(execution.Stdout, "ruby 2.7.7p57 (2018-03-29 revision 63029) [x86_64-linux-gnu]")
+				_, err := fmt.Fprintf(execution.Stdout, "ruby 2.7.7p57 (2018-03-29 revision 63029) [x86_64-linux-gnu]")
+				Expect(err).NotTo(HaveOccurred())
 				return nil
 			}
 
@@ -48,7 +49,8 @@ func testRubyVersionResolver(t *testing.T, context spec.G, it spec.S) {
 				context("fails to execute `ruby --version`", func() {
 					it.Before(func() {
 						executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
-							fmt.Fprintf(execution.Stderr, "failed to execute")
+							_, err := fmt.Fprintf(execution.Stderr, "failed to execute")
+							Expect(err).NotTo(HaveOccurred())
 							return errors.New("exit status 1")
 						}
 					})
@@ -64,7 +66,8 @@ func testRubyVersionResolver(t *testing.T, context spec.G, it spec.S) {
 				context("no ruby match is found", func() {
 					it.Before(func() {
 						executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
-							fmt.Fprintf(execution.Stdout, "")
+							_, err := fmt.Fprintf(execution.Stdout, "")
+							Expect(err).NotTo(HaveOccurred())
 							return nil
 						}
 					})

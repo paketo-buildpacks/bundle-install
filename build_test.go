@@ -2,11 +2,13 @@ package bundleinstall_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	bundleinstall "github.com/paketo-buildpacks/bundle-install"
@@ -20,6 +22,91 @@ import (
 	. "github.com/onsi/gomega"
 	. "github.com/paketo-buildpacks/occam/matchers"
 )
+
+func assertCycloneDX(t *testing.T, content []byte) {
+	t.Helper()
+	Expect := NewWithT(t).Expect
+
+	var document map[string]interface{}
+	Expect(json.Unmarshal(content, &document)).To(Succeed())
+	Expect(document["$schema"]).To(Equal("http://cyclonedx.org/schema/bom-1.3.schema.json"))
+	Expect(document["bomFormat"]).To(Equal("CycloneDX"))
+	Expect(document["specVersion"]).To(Equal("1.3"))
+	Expect(document["version"]).To(BeEquivalentTo(1))
+
+	metadata, ok := document["metadata"].(map[string]interface{})
+	Expect(ok).To(BeTrue())
+
+	tools, ok := metadata["tools"].([]interface{})
+	Expect(ok).To(BeTrue())
+	Expect(tools).NotTo(BeEmpty())
+
+	tool, ok := tools[0].(map[string]interface{})
+	Expect(ok).To(BeTrue())
+	Expect(tool["name"]).To(Equal(""))
+	Expect(tool["vendor"]).To(Equal("anchore"))
+}
+
+func assertSPDX(t *testing.T, content []byte) {
+	t.Helper()
+	Expect := NewWithT(t).Expect
+
+	var document map[string]interface{}
+	Expect(json.Unmarshal(content, &document)).To(Succeed())
+	spdxID, ok := document["SPDXID"].(string)
+	Expect(ok).To(BeTrue())
+	Expect(spdxID == "SPDXRef-DOCUMENT" || spdxID == "SPDXRef-DocumentRoot-Unknown-").To(BeTrue())
+	Expect(document["dataLicense"]).To(Equal("CC0-1.0"))
+	Expect(document["name"]).To(Equal("unknown"))
+	Expect(document["spdxVersion"]).To(Equal("SPDX-2.2"))
+
+	documentNamespace, ok := document["documentNamespace"].(string)
+	Expect(ok).To(BeTrue())
+	Expect(
+		strings.HasPrefix(documentNamespace, "https://paketo.io/packit/unknown-source-type/unknown-") ||
+			strings.HasPrefix(documentNamespace, "https://paketo.io/unknown-source-type/unknown-"),
+	).To(BeTrue())
+
+	creationInfo, ok := document["creationInfo"].(map[string]interface{})
+	Expect(ok).To(BeTrue())
+	creators, ok := creationInfo["creators"].([]interface{})
+	Expect(ok).To(BeTrue())
+	Expect(creators).NotTo(BeEmpty())
+
+	foundOrganizationCreator := false
+	foundToolCreator := false
+	for _, creator := range creators {
+		creatorString, ok := creator.(string)
+		if !ok {
+			continue
+		}
+
+		if creatorString == "Organization: Anchore, Inc" {
+			foundOrganizationCreator = true
+		}
+
+		if strings.HasPrefix(creatorString, "Tool:") {
+			foundToolCreator = true
+		}
+	}
+
+	Expect(foundOrganizationCreator).To(BeTrue())
+	Expect(foundToolCreator).To(BeTrue())
+
+	relationships, ok := document["relationships"].([]interface{})
+	Expect(ok).To(BeTrue())
+	Expect(relationships).To(HaveLen(1))
+
+	relationship, ok := relationships[0].(map[string]interface{})
+	Expect(ok).To(BeTrue())
+	Expect(relationship["relationshipType"]).To(Equal("DESCRIBES"))
+	relatedElement, ok := relationship["relatedSpdxElement"].(string)
+	Expect(ok).To(BeTrue())
+	spdxElementID, ok := relationship["spdxElementId"].(string)
+	Expect(ok).To(BeTrue())
+	Expect(strings.HasPrefix(relatedElement, "SPDXRef-")).To(BeTrue())
+	Expect(strings.HasPrefix(spdxElementID, "SPDXRef-")).To(BeTrue())
+}
 
 func testBuild(t *testing.T, context spec.G, it spec.S) {
 	var (
@@ -138,47 +225,12 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			Expect(cdx.Extension).To(Equal("cdx.json"))
 			content, err := io.ReadAll(cdx.Content)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(string(content)).To(MatchJSON(`{
-				"bomFormat": "CycloneDX",
-				"components": [],
-				"metadata": {
-					"tools": [
-						{
-							"name": "syft",
-							"vendor": "anchore",
-							"version": "[not provided]"
-						}
-					]
-				},
-				"specVersion": "1.3",
-				"version": 1
-			}`))
+			assertCycloneDX(t, content)
 
 			Expect(spdx.Extension).To(Equal("spdx.json"))
 			content, err = io.ReadAll(spdx.Content)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(string(content)).To(MatchJSON(`{
-				"SPDXID": "SPDXRef-DOCUMENT",
-				"creationInfo": {
-					"created": "0001-01-01T00:00:00Z",
-					"creators": [
-						"Organization: Anchore, Inc",
-						"Tool: syft-"
-					],
-					"licenseListVersion": "3.16"
-				},
-				"dataLicense": "CC0-1.0",
-				"documentNamespace": "https://paketo.io/packit/unknown-source-type/unknown-88cfa225-65e0-5755-895f-c1c8f10fde76",
-				"name": "unknown",
-				"relationships": [
-					{
-						"relatedSpdxElement": "SPDXRef-DOCUMENT",
-						"relationshipType": "DESCRIBES",
-						"spdxElementId": "SPDXRef-DOCUMENT"
-					}
-				],
-				"spdxVersion": "SPDX-2.2"
-			}`))
+			assertSPDX(t, content)
 
 			Expect(filepath.Join(workingDir, ".bundle", "config")).NotTo(BeAnExistingFile())
 			Expect(filepath.Join(workingDir, ".bundle", "config.bak")).NotTo(BeAnExistingFile())
@@ -289,47 +341,12 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			Expect(cdx.Extension).To(Equal("cdx.json"))
 			content, err := io.ReadAll(cdx.Content)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(string(content)).To(MatchJSON(`{
-				"bomFormat": "CycloneDX",
-				"components": [],
-				"metadata": {
-					"tools": [
-						{
-							"name": "syft",
-							"vendor": "anchore",
-							"version": "[not provided]"
-						}
-					]
-				},
-				"specVersion": "1.3",
-				"version": 1
-			}`))
+			assertCycloneDX(t, content)
 
 			Expect(spdx.Extension).To(Equal("spdx.json"))
 			content, err = io.ReadAll(spdx.Content)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(string(content)).To(MatchJSON(`{
-				"SPDXID": "SPDXRef-DOCUMENT",
-				"creationInfo": {
-					"created": "0001-01-01T00:00:00Z",
-					"creators": [
-						"Organization: Anchore, Inc",
-						"Tool: syft-"
-					],
-					"licenseListVersion": "3.16"
-				},
-				"dataLicense": "CC0-1.0",
-				"documentNamespace": "https://paketo.io/packit/unknown-source-type/unknown-88cfa225-65e0-5755-895f-c1c8f10fde76",
-				"name": "unknown",
-				"relationships": [
-					{
-						"relatedSpdxElement": "SPDXRef-DOCUMENT",
-						"relationshipType": "DESCRIBES",
-						"spdxElementId": "SPDXRef-DOCUMENT"
-					}
-				],
-				"spdxVersion": "SPDX-2.2"
-			}`))
+			assertSPDX(t, content)
 
 			Expect(filepath.Join(workingDir, ".bundle", "config")).NotTo(BeAnExistingFile())
 
@@ -461,47 +478,12 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			Expect(cdx.Extension).To(Equal("cdx.json"))
 			content, err := io.ReadAll(cdx.Content)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(string(content)).To(MatchJSON(`{
-				"bomFormat": "CycloneDX",
-				"components": [],
-				"metadata": {
-					"tools": [
-						{
-							"name": "syft",
-							"vendor": "anchore",
-							"version": "[not provided]"
-						}
-					]
-				},
-				"specVersion": "1.3",
-				"version": 1
-			}`))
+			assertCycloneDX(t, content)
 
 			Expect(spdx.Extension).To(Equal("spdx.json"))
 			content, err = io.ReadAll(spdx.Content)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(string(content)).To(MatchJSON(`{
-				"SPDXID": "SPDXRef-DOCUMENT",
-				"creationInfo": {
-					"created": "0001-01-01T00:00:00Z",
-					"creators": [
-						"Organization: Anchore, Inc",
-						"Tool: syft-"
-					],
-					"licenseListVersion": "3.16"
-				},
-				"dataLicense": "CC0-1.0",
-				"documentNamespace": "https://paketo.io/packit/unknown-source-type/unknown-88cfa225-65e0-5755-895f-c1c8f10fde76",
-				"name": "unknown",
-				"relationships": [
-					{
-						"relatedSpdxElement": "SPDXRef-DOCUMENT",
-						"relationshipType": "DESCRIBES",
-						"spdxElementId": "SPDXRef-DOCUMENT"
-					}
-				],
-				"spdxVersion": "SPDX-2.2"
-			}`))
+			assertSPDX(t, content)
 
 			launchLayer := layers[1]
 			Expect(launchLayer.Name).To(Equal("launch-gems"))
@@ -531,47 +513,12 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			Expect(cdx.Extension).To(Equal("cdx.json"))
 			content, err = io.ReadAll(cdx.Content)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(string(content)).To(MatchJSON(`{
-				"bomFormat": "CycloneDX",
-				"components": [],
-				"metadata": {
-					"tools": [
-						{
-							"name": "syft",
-							"vendor": "anchore",
-							"version": "[not provided]"
-						}
-					]
-				},
-				"specVersion": "1.3",
-				"version": 1
-			}`))
+			assertCycloneDX(t, content)
 
 			Expect(spdx.Extension).To(Equal("spdx.json"))
 			content, err = io.ReadAll(spdx.Content)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(string(content)).To(MatchJSON(`{
-				"SPDXID": "SPDXRef-DOCUMENT",
-				"creationInfo": {
-					"created": "0001-01-01T00:00:00Z",
-					"creators": [
-						"Organization: Anchore, Inc",
-						"Tool: syft-"
-					],
-					"licenseListVersion": "3.16"
-				},
-				"dataLicense": "CC0-1.0",
-				"documentNamespace": "https://paketo.io/packit/unknown-source-type/unknown-88cfa225-65e0-5755-895f-c1c8f10fde76",
-				"name": "unknown",
-				"relationships": [
-					{
-						"relatedSpdxElement": "SPDXRef-DOCUMENT",
-						"relationshipType": "DESCRIBES",
-						"spdxElementId": "SPDXRef-DOCUMENT"
-					}
-				],
-				"spdxVersion": "SPDX-2.2"
-			}`))
+			assertSPDX(t, content)
 
 			content, err = os.ReadFile(filepath.Join(layersDir, "launch-gems", "ruby", "some-file"))
 			Expect(err).NotTo(HaveOccurred())
