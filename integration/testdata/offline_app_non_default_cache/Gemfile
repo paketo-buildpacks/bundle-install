@@ -4,3 +4,4 @@ ruby '~> 3.4.0'
 
 gem 'sinatra'
 gem 'puma'
+gem 'rackup'

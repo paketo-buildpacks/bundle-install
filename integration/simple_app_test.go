@@ -86,12 +86,12 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 				"    Adding global config path to $BUNDLE_USER_CONFIG",
 			))
 			Expect(logs).To(ContainLines(
-				"    Running 'bundle config --global clean true'",
+				"    Running 'bundle config set --global clean true'",
 			))
 			Expect(logs).To(ContainLines(
-				MatchRegexp(fmt.Sprintf("    Running 'bundle config --global path /layers/%s/build-gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+				MatchRegexp(fmt.Sprintf("    Running 'bundle config set --global path /layers/%s/build-gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
 			))
-			Expect(logs).To(ContainLines("    Running 'bundle config --global cache_path --parseable'"))
+			Expect(logs).To(ContainLines("    Running 'bundle config get cache_path'"))
 			Expect(logs).To(ContainLines("    Running 'bundle install'"))
 			Expect(logs).To(ContainLines(
 				MatchRegexp(`      Completed in \d+\.?\d*`),
@@ -112,13 +112,13 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 				"    Adding global config path to $BUNDLE_USER_CONFIG",
 			))
 			Expect(logs).To(ContainLines(
-				"    Running 'bundle config --global clean true'",
+				"    Running 'bundle config set --global clean true'",
 			))
 			Expect(logs).To(ContainLines(
-				MatchRegexp(fmt.Sprintf("    Running 'bundle config --global path /layers/%s/launch-gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
+				MatchRegexp(fmt.Sprintf("    Running 'bundle config set --global path /layers/%s/launch-gems'", strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
 			))
-			Expect(logs).To(ContainLines("    Running 'bundle config --global without development:test'"))
-			Expect(logs).To(ContainLines("    Running 'bundle config --global cache_path --parseable'"))
+			Expect(logs).To(ContainLines("    Running 'bundle config set --global without development:test'"))
+			Expect(logs).To(ContainLines("    Running 'bundle config get cache_path'"))
 			Expect(logs).To(ContainLines("    Running 'bundle install'"))
 			Expect(logs).To(ContainLines(
 				MatchRegexp(`      Completed in \d+\.?\d*`),
@@ -140,8 +140,11 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			Expect(logs).To(ContainLines("Paketo Buildpack for Bundle List"))
 			Expect(logs).To(ContainLines(
 				"  Gems included by the bundle:",
+				MatchRegexp(`    \* base64`),
 				MatchRegexp(`    \* coderay`),
 				MatchRegexp(`    \* diff-lcs`),
+				MatchRegexp(`    \* io-console`),
+				MatchRegexp(`    \* logger`),
 				MatchRegexp(`    \* method_source`),
 				MatchRegexp(`    \* mustermann`),
 				MatchRegexp(`    \* nio4r`),
@@ -149,12 +152,14 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 				MatchRegexp(`    \* puma`),
 				MatchRegexp(`    \* rack`),
 				MatchRegexp(`    \* rack-protection`),
+				MatchRegexp(`    \* rack-session`),
+				MatchRegexp(`    \* rackup`),
+				MatchRegexp(`    \* reline`),
 				MatchRegexp(`    \* rspec`),
 				MatchRegexp(`    \* rspec-core`),
 				MatchRegexp(`    \* rspec-expectations`),
 				MatchRegexp(`    \* rspec-mocks`),
 				MatchRegexp(`    \* rspec-support`),
-				MatchRegexp(`    \* ruby2_keywords`),
 				MatchRegexp(`    \* sinatra`),
 				MatchRegexp(`    \* tilt`),
 			))
@@ -196,12 +201,15 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 
 			Expect(logs).To(ContainLines(
 				"Gems included by the bundle:",
+				MatchRegexp(`  \* base64`),
+				MatchRegexp(`  \* logger`),
 				MatchRegexp(`  \* mustermann`),
 				MatchRegexp(`  \* nio4r`),
 				MatchRegexp(`  \* puma`),
 				MatchRegexp(`  \* rack`),
 				MatchRegexp(`  \* rack-protection`),
-				MatchRegexp(`  \* ruby2_keywords`),
+				MatchRegexp(`  \* rack-session`),
+				MatchRegexp(`  \* rackup`),
 				MatchRegexp(`  \* sinatra`),
 				MatchRegexp(`  \* tilt`),
 			))
