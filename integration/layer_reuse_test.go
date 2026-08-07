@@ -268,8 +268,8 @@ func testLayerReuse(t *testing.T, context spec.G, it spec.S) {
 
 				err = os.WriteFile(filepath.Join(source, "Gemfile"),
 					[]byte(strings.ReplaceAll(string(contents),
-						`gem 'sinatra', '~>2.1.0'`,
-						`gem 'sinatra', '~>2.0.8'`,
+						`gem 'sinatra'`,
+						`gem 'sinatra', '~> 4.0'`,
 					)), 0600)
 				Expect(err).NotTo(HaveOccurred())
 

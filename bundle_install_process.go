@@ -167,7 +167,7 @@ func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[
 	sort.Strings(keys)
 
 	for _, key := range keys {
-		args := []string{"config", "--global", key, config[key]}
+		args := []string{"config", "set", "--global", key, config[key]}
 
 		ip.logger.Subprocess("Running 'bundle %s'", strings.Join(args, " "))
 
@@ -184,7 +184,7 @@ func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[
 
 	buffer := bytes.NewBuffer(nil)
 	errorBuffer := bytes.NewBuffer(nil)
-	args := []string{"config", "--global", "cache_path", "--parseable"}
+	args := []string{"config", "get", "cache_path"}
 
 	ip.logger.Subprocess("Running 'bundle %s'", strings.Join(args, " "))
 
@@ -194,16 +194,32 @@ func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[
 		Stderr: errorBuffer,
 		Env:    env,
 	})
-	if err != nil {
-		return fmt.Errorf("failed to execute bundle config output:\n%s\nerror: %s", errorBuffer.String(), err)
-	}
 
 	cachePath := filepath.Join("vendor", "cache")
 
-	if buffer.String() != "" {
-		// output is in the form: cache_path=path/to/custom/cache
-		cachePathRaw := (strings.SplitN(buffer.String(), "=", 2))[1]
-		cachePath = strings.Trim(cachePathRaw, "\n")
+	notConfigured := strings.Contains(buffer.String(), "have not configured a value") && strings.Contains(buffer.String(), "cache_path")
+	if err != nil && !notConfigured {
+		return fmt.Errorf("failed to execute bundle config output:\n%s\nerror: %s", errorBuffer.String(), err)
+	}
+
+	if !notConfigured && buffer.String() != "" {
+		output := strings.TrimSpace(buffer.String())
+		if strings.Contains(output, "Set for") {
+			// bundler shows verbose output when configured in multiple places
+			// extract the top value from the first "Set for" line: Set for ...: "value"
+			for _, line := range strings.Split(output, "\n") {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, "Set for") {
+					if idx := strings.LastIndex(line, ": "); idx >= 0 {
+						cachePath = strings.Trim(line[idx+2:], `"`)
+						break
+					}
+				}
+			}
+		} else {
+			// Simple value output (configured in exactly one place)
+			cachePath = output
+		}
 	}
 
 	ip.logger.Action(buffer.String())
