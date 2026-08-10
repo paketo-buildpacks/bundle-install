@@ -323,6 +323,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 			Expect(layer.BuildEnv).To(BeEmpty())
 			Expect(layer.LaunchEnv).To(Equal(packit.Environment{
+				"BUNDLE_FROZEN.default":       "1",
 				"BUNDLE_USER_CONFIG.default": filepath.Join(layersDir, "launch-gems", "config"),
 			}))
 			Expect(layer.ProcessLaunchEnv).To(BeEmpty())
@@ -376,6 +377,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			))
 			Expect(buffer).To(ContainLines(
 				"  Configuring launch environment",
+				fmt.Sprintf("    BUNDLE_FROZEN      -> %q", "1"),
 				fmt.Sprintf("    BUNDLE_USER_CONFIG -> %q", filepath.Join(layersDir, "launch-gems", "config")),
 			))
 		})
@@ -495,6 +497,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 			Expect(launchLayer.BuildEnv).To(BeEmpty())
 			Expect(launchLayer.LaunchEnv).To(Equal(packit.Environment{
+				"BUNDLE_FROZEN.default":       "1",
 				"BUNDLE_USER_CONFIG.default": filepath.Join(layersDir, "launch-gems", "config"),
 			}))
 			Expect(launchLayer.ProcessLaunchEnv).To(BeEmpty())

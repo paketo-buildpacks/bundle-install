@@ -244,11 +244,17 @@ func Build(
 				logger.Break()
 
 				layer.LaunchEnv.Default("BUNDLE_USER_CONFIG", filepath.Join(layer.Path, "config"))
-				layer.Metadata = map[string]interface{}{
-					"stack":        context.Stack,
-					"cache_sha":    checksum,
-					"ruby_version": rubyVersion,
-				}
+			// bundler 4.x attempts to touch/rewrite Gemfile.lock during
+			// 'bundle exec' even when no content changes are needed. At
+			// launch time /workspace is not writable by the CNB app user,
+			// so this causes a PermissionError. BUNDLE_FROZEN prevents
+			// any Gemfile.lock writes at runtime.
+			layer.LaunchEnv.Default("BUNDLE_FROZEN", "1")
+			layer.Metadata = map[string]interface{}{
+				"stack":        context.Stack,
+				"cache_sha":    checksum,
+				"ruby_version": rubyVersion,
+			}
 
 				logger.GeneratingSBOM(layer.Path)
 
