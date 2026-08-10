@@ -268,3 +268,43 @@ func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[
 
 	return nil
 }
+
+// RegenerateLockfile runs "bundle lock" to ensure the app's Gemfile.lock
+// reflects the current Ruby version. It deliberately does NOT set
+// BUNDLE_USER_CONFIG (or otherwise reference any buildpack-managed layer):
+// "bundle lock" only needs the Gemfile/Gemfile.lock in workingDir to
+// resolve and stamp the lockfile, it doesn't need to know where gems are
+// installed.
+//
+// This must be called on every build, regardless of whether Execute runs.
+// The application's working directory--including its Gemfile.lock--is never
+// cached between builds; it is always freshly copied from the app source. If
+// a layer is instead reused from a previous build, that freshly copied
+// Gemfile.lock would otherwise be missing (or have a stale) Ruby version
+// pin. Combined with BUNDLE_DEPLOYMENT (frozen mode) at launch, that
+// mismatch causes Bundler to fail with a Bundler::ProductionError when it
+// tries and fails to update the read-only lockfile.
+//
+// Critically, this must never write into (or otherwise cause the creation
+// of files inside) a launch-only, cache=false layer directory such as
+// launch-gems. Those layers are reused across builds purely by the
+// buildpack leaving their metadata untouched--the exporter then reuses the
+// previous image's layer blob without ever restoring its contents to disk
+// in the current build. Any incidental write into that directory (even an
+// empty file) makes the exporter think the layer changed, so it re-exports
+// the (still un-restored, effectively empty) directory from disk--silently
+// discarding the previously installed gems.
+func (ip BundleInstallProcess) RegenerateLockfile(workingDir string) error {
+	ip.logger.Subprocess("Running 'bundle lock'")
+	err := ip.executable.Execute(pexec.Execution{
+		Args:   []string{"lock"},
+		Dir:    workingDir,
+		Stdout: ip.logger.ActionWriter,
+		Stderr: ip.logger.ActionWriter,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to regenerate lockfile: %w", err)
+	}
+
+	return nil
+}

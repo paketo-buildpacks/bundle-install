@@ -129,6 +129,7 @@ func testSimpleApp(t *testing.T, context spec.G, it spec.S) {
 			))
 			Expect(logs).To(ContainLines(
 				"  Configuring launch environment",
+				`    BUNDLE_DEPLOYMENT  -> "true"`,
 				MatchRegexp(fmt.Sprintf(`    BUNDLE_USER_CONFIG -> "/layers/%s/launch-gems/config"`, strings.ReplaceAll(settings.Buildpack.ID, "/", "_"))),
 			))
 			Expect(logs).To(ContainLines(

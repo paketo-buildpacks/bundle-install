@@ -261,9 +261,9 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
 					executions = append(executions, execution)
 
-if strings.Contains(strings.Join(execution.Args, " "), "config get cache_path") {
+					if strings.Contains(strings.Join(execution.Args, " "), "config get cache_path") {
 						_, err := fmt.Fprintf(execution.Stdout, "other_dir/other_cache")
-							Expect(err).NotTo(HaveOccurred())
+						Expect(err).NotTo(HaveOccurred())
 					}
 
 					return nil
@@ -327,11 +327,9 @@ if strings.Contains(strings.Join(execution.Args, " "), "config get cache_path") 
 					Expect(executions).To(HaveLen(2))
 					Expect(executions[0].Args).To(Equal([]string{"config", "get", "cache_path"}))
 					Expect(executions[1].Args).To(Equal([]string{"install"}))
-
 					contents, err := os.ReadFile(filepath.Join(layerPath, "config"))
 					Expect(err).NotTo(HaveOccurred())
 					Expect(string(contents)).To(Equal("other-bundle-config"))
-
 					contents, err = os.ReadFile(filepath.Join(workingDir, ".bundle", "config"))
 					Expect(err).NotTo(HaveOccurred())
 					Expect(string(contents)).To(Equal("other-bundle-config"))
@@ -475,6 +473,33 @@ if strings.Contains(strings.Join(execution.Args, " "), "config get cache_path") 
 					Expect(err).To(MatchError(ContainSubstring("failed to cleanup gem extension build files")))
 					Expect(err).To(MatchError(ContainSubstring("permission denied")))
 				})
+			})
+		})
+	})
+
+	context("RegenerateLockfile", func() {
+		it("runs bundle lock in the working directory without referencing any layer", func() {
+			err := installProcess.RegenerateLockfile(workingDir)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(executions).To(HaveLen(1))
+			Expect(executions[0].Args).To(Equal([]string{"lock"}))
+			Expect(executions[0].Dir).To(Equal(workingDir))
+			Expect(executions[0].Env).NotTo(ContainElement(ContainSubstring("BUNDLE_USER_CONFIG")))
+		})
+
+		context("when bundle lock fails", func() {
+			it.Before(func() {
+				executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
+					executions = append(executions, execution)
+					return errors.New("bundle lock failed")
+				}
+			})
+
+			it("returns an error", func() {
+				err := installProcess.RegenerateLockfile(workingDir)
+				Expect(err).To(MatchError(ContainSubstring("failed to regenerate lockfile")))
+				Expect(err).To(MatchError(ContainSubstring("bundle lock failed")))
 			})
 		})
 	})
