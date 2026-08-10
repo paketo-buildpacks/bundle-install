@@ -84,6 +84,27 @@ func Build(
 
 		var layers []packit.Layer
 
+		// Pre-compute the launch layer's cache decision BEFORE running bundle install
+		// for the build layer. bundle install can modify Gemfile.lock (e.g. updating
+		// PLATFORMS or BUNDLED WITH), which causes an inconsistent SHA when computed
+		// after build-gems has already run: build-gems would be reused (no file change),
+		// but launch-gems would see the pre-modification file and compute a different SHA.
+		var (
+			preLaunchShouldRun   bool
+			preLaunchChecksum    string
+			preLaunchRubyVersion string
+		)
+		if launch {
+			preLaunchLayer, err := context.Layers.Get(LayerNameLaunchGems)
+			if err != nil {
+				return packit.BuildResult{}, err
+			}
+			preLaunchShouldRun, preLaunchChecksum, preLaunchRubyVersion, err = installProcess.ShouldRun(preLaunchLayer.Metadata, context.WorkingDir)
+			if err != nil {
+				return packit.BuildResult{}, err
+			}
+		}
+
 		if build {
 			logger.Debug.Process("Getting the layer associated with %s", LayerNameBuildGems)
 			layer, err := context.Layers.Get(LayerNameBuildGems)
@@ -179,10 +200,8 @@ func Build(
 
 			logger.Debug.Process("Checking if the launch environment install process should run")
 			logger.Debug.Break()
-			should, checksum, rubyVersion, err := installProcess.ShouldRun(layer.Metadata, context.WorkingDir)
-			if err != nil {
-				return packit.BuildResult{}, err
-			}
+			// Use the checksum computed before build-gems potentially modified Gemfile.lock.
+			should, checksum, rubyVersion := preLaunchShouldRun, preLaunchChecksum, preLaunchRubyVersion
 
 			stack, ok := layer.Metadata["stack"]
 			if ok && stack.(string) != context.Stack {
