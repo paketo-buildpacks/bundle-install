@@ -244,12 +244,12 @@ func Build(
 				logger.Break()
 
 				layer.LaunchEnv.Default("BUNDLE_USER_CONFIG", filepath.Join(layer.Path, "config"))
-			// bundler 4.x attempts to touch/rewrite Gemfile.lock during
-			// 'bundle exec' even when no content changes are needed. At
-			// launch time /workspace is not writable by the CNB app user,
-			// so this causes a PermissionError. BUNDLE_FROZEN prevents
-			// any Gemfile.lock writes at runtime.
-			layer.LaunchEnv.Default("BUNDLE_FROZEN", "1")
+			// Set BUNDLE_DEPLOYMENT mode to prevent bundler from attempting
+			// to modify the Gemfile.lock during 'bundle exec' at launch time.
+			// In deployment mode, bundler validates that Gemfile and Gemfile.lock
+			// are in sync but does not write to the lockfile, avoiding permission
+			// errors on read-only /workspace.
+			layer.LaunchEnv.Default("BUNDLE_DEPLOYMENT", "true")
 			layer.Metadata = map[string]interface{}{
 				"stack":        context.Stack,
 				"cache_sha":    checksum,
