@@ -226,7 +226,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				err := installProcess.Execute(workingDir, layerPath, map[string]string{"path": "some-dir"}, false)
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(executions).To(HaveLen(3))
+				Expect(executions).To(HaveLen(4))
 
 				Expect(executions[0].Args).To(Equal([]string{"config", "set", "--global", "path", "some-dir"}))
 				Expect(executions[0].Env).To(ContainElement(fmt.Sprintf("BUNDLE_USER_CONFIG=%s", filepath.Join(layerPath, "config"))))
@@ -236,6 +236,8 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 
 				Expect(executions[2].Args).To(Equal([]string{"install"}))
 				Expect(executions[2].Env).To(ContainElement(fmt.Sprintf("BUNDLE_USER_CONFIG=%s", filepath.Join(layerPath, "config"))))
+
+				Expect(executions[3].Args).To(Equal([]string{"lock"}))
 			})
 		})
 
@@ -248,10 +250,11 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				err := installProcess.Execute(workingDir, layerPath, map[string]string{"clean": "true"}, false)
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(executions).To(HaveLen(3))
+				Expect(executions).To(HaveLen(4))
 				Expect(executions[0].Args).To(Equal([]string{"config", "set", "--global", "clean", "true"}))
 				Expect(executions[1].Args).To(Equal([]string{"config", "get", "cache_path"}))
 				Expect(executions[2].Args).To(Equal([]string{"install", "--local"}))
+				Expect(executions[3].Args).To(Equal([]string{"lock"}))
 			})
 		})
 
@@ -276,10 +279,11 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				}, false)
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(executions).To(HaveLen(3))
+				Expect(executions).To(HaveLen(4))
 				Expect(executions[0].Args).To(Equal([]string{"config", "set", "--global", "without", "development:test"}))
 				Expect(executions[1].Args).To(Equal([]string{"config", "get", "cache_path"}))
 				Expect(executions[2].Args).To(Equal([]string{"install", "--local"}))
+				Expect(executions[3].Args).To(Equal([]string{"lock"}))
 			})
 		})
 
@@ -293,9 +297,10 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				err := installProcess.Execute(workingDir, layerPath, nil, false)
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(executions).To(HaveLen(2))
+				Expect(executions).To(HaveLen(3))
 				Expect(executions[0].Args).To(Equal([]string{"config", "get", "cache_path"}))
 				Expect(executions[1].Args).To(Equal([]string{"install"}))
+				Expect(executions[2].Args).To(Equal([]string{"lock"}))
 
 				contents, err := os.ReadFile(filepath.Join(layerPath, "config"))
 				Expect(err).NotTo(HaveOccurred())
@@ -306,9 +311,10 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				err := installProcess.Execute(workingDir, layerPath, nil, false)
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(executions).To(HaveLen(2))
+				Expect(executions).To(HaveLen(3))
 				Expect(executions[0].Args).To(Equal([]string{"config", "get", "cache_path"}))
 				Expect(executions[1].Args).To(Equal([]string{"install"}))
+				Expect(executions[2].Args).To(Equal([]string{"lock"}))
 
 				contents, err := os.ReadFile(filepath.Join(workingDir, ".bundle", "config.bak"))
 				Expect(err).NotTo(HaveOccurred())
@@ -324,14 +330,13 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 					err := installProcess.Execute(workingDir, layerPath, nil, false)
 					Expect(err).NotTo(HaveOccurred())
 
-					Expect(executions).To(HaveLen(2))
+					Expect(executions).To(HaveLen(3))
 					Expect(executions[0].Args).To(Equal([]string{"config", "get", "cache_path"}))
 					Expect(executions[1].Args).To(Equal([]string{"install"}))
-
+					Expect(executions[2].Args).To(Equal([]string{"lock"}))
 					contents, err := os.ReadFile(filepath.Join(layerPath, "config"))
 					Expect(err).NotTo(HaveOccurred())
 					Expect(string(contents)).To(Equal("other-bundle-config"))
-
 					contents, err = os.ReadFile(filepath.Join(workingDir, ".bundle", "config"))
 					Expect(err).NotTo(HaveOccurred())
 					Expect(string(contents)).To(Equal("other-bundle-config"))

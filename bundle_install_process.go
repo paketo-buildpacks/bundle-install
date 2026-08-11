@@ -245,6 +245,20 @@ func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[
 		return fmt.Errorf("failed to execute bundle install output:\n%s\nerror: %s", buffer.String(), err)
 	}
 
+	// Regenerate the lockfile to ensure it includes the current Ruby version.
+	// This prevents bundler 4.x from trying to update it at runtime when
+	// the working directory is read-only.
+	ip.logger.Subprocess("Running 'bundle lock'")
+	err = ip.executable.Execute(pexec.Execution{
+		Args:   []string{"lock"},
+		Stdout: ip.logger.ActionWriter,
+		Stderr: ip.logger.ActionWriter,
+		Env:    env,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to regenerate lockfile: %w", err)
+	}
+
 	if !keepBuildFiles {
 		err = filepath.Walk(layerPath, func(path string, info fs.FileInfo, err error) error {
 			if err != nil {
