@@ -223,7 +223,7 @@ func (ip BundleInstallProcess) Execute(workingDir, layerPath string, config map[
 	}
 
 	ip.logger.Action(buffer.String())
-	args = []string{"install"}
+	args = []string{"install", "--update=ruby"}
 
 	_, err = os.Stat(filepath.Join(workingDir, cachePath))
 	if err != nil {
