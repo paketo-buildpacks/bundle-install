@@ -244,6 +244,7 @@ func Build(
 				logger.Break()
 
 				layer.LaunchEnv.Default("BUNDLE_USER_CONFIG", filepath.Join(layer.Path, "config"))
+			layer.LaunchEnv.Default("BUNDLE_DEPLOYMENT", "true")
 			layer.Metadata = map[string]interface{}{
 				"stack":        context.Stack,
 				"cache_sha":    checksum,

@@ -323,7 +323,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 			Expect(layer.BuildEnv).To(BeEmpty())
 			Expect(layer.LaunchEnv).To(Equal(packit.Environment{
-
+				"BUNDLE_DEPLOYMENT.default":  "true",
 				"BUNDLE_USER_CONFIG.default": filepath.Join(layersDir, "launch-gems", "config"),
 			}))
 			Expect(layer.ProcessLaunchEnv).To(BeEmpty())
@@ -377,6 +377,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			))
 			Expect(buffer).To(ContainLines(
 				"  Configuring launch environment",
+				MatchRegexp(`BUNDLE_DEPLOYMENT\s+-> "true"`),
 				MatchRegexp(`BUNDLE_USER_CONFIG\s+-> ".*/launch-gems/config"`),
 			))
 		})
@@ -496,7 +497,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 			Expect(launchLayer.BuildEnv).To(BeEmpty())
 			Expect(launchLayer.LaunchEnv).To(Equal(packit.Environment{
-
+				"BUNDLE_DEPLOYMENT.default":  "true",
 				"BUNDLE_USER_CONFIG.default": filepath.Join(layersDir, "launch-gems", "config"),
 			}))
 			Expect(launchLayer.ProcessLaunchEnv).To(BeEmpty())
