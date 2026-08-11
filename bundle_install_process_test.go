@@ -234,7 +234,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				Expect(executions[1].Args).To(Equal([]string{"config", "get", "cache_path"}))
 				Expect(executions[1].Env).To(ContainElement(fmt.Sprintf("BUNDLE_USER_CONFIG=%s", filepath.Join(layerPath, "config"))))
 
-				Expect(executions[2].Args).To(Equal([]string{"install", "--update=ruby"}))
+				Expect(executions[2].Args).To(Equal([]string{"install"}))
 				Expect(executions[2].Env).To(ContainElement(fmt.Sprintf("BUNDLE_USER_CONFIG=%s", filepath.Join(layerPath, "config"))))
 			})
 		})
@@ -251,7 +251,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				Expect(executions).To(HaveLen(3))
 				Expect(executions[0].Args).To(Equal([]string{"config", "set", "--global", "clean", "true"}))
 				Expect(executions[1].Args).To(Equal([]string{"config", "get", "cache_path"}))
-				Expect(executions[2].Args).To(Equal([]string{"install", "--update=ruby", "--local"}))
+				Expect(executions[2].Args).To(Equal([]string{"install", "--local"}))
 			})
 		})
 
@@ -261,9 +261,9 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
 					executions = append(executions, execution)
 
-if strings.Contains(strings.Join(execution.Args, " "), "config get cache_path") {
+					if strings.Contains(strings.Join(execution.Args, " "), "config get cache_path") {
 						_, err := fmt.Fprintf(execution.Stdout, "other_dir/other_cache")
-							Expect(err).NotTo(HaveOccurred())
+						Expect(err).NotTo(HaveOccurred())
 					}
 
 					return nil
@@ -279,7 +279,7 @@ if strings.Contains(strings.Join(execution.Args, " "), "config get cache_path") 
 				Expect(executions).To(HaveLen(3))
 				Expect(executions[0].Args).To(Equal([]string{"config", "set", "--global", "without", "development:test"}))
 				Expect(executions[1].Args).To(Equal([]string{"config", "get", "cache_path"}))
-				Expect(executions[2].Args).To(Equal([]string{"install", "--update=ruby", "--local"}))
+				Expect(executions[2].Args).To(Equal([]string{"install", "--local"}))
 			})
 		})
 
@@ -295,7 +295,7 @@ if strings.Contains(strings.Join(execution.Args, " "), "config get cache_path") 
 
 				Expect(executions).To(HaveLen(2))
 				Expect(executions[0].Args).To(Equal([]string{"config", "get", "cache_path"}))
-				Expect(executions[1].Args).To(Equal([]string{"install", "--update=ruby"}))
+				Expect(executions[1].Args).To(Equal([]string{"install"}))
 
 				contents, err := os.ReadFile(filepath.Join(layerPath, "config"))
 				Expect(err).NotTo(HaveOccurred())
@@ -308,7 +308,7 @@ if strings.Contains(strings.Join(execution.Args, " "), "config get cache_path") 
 
 				Expect(executions).To(HaveLen(2))
 				Expect(executions[0].Args).To(Equal([]string{"config", "get", "cache_path"}))
-				Expect(executions[1].Args).To(Equal([]string{"install", "--update=ruby"}))
+				Expect(executions[1].Args).To(Equal([]string{"install"}))
 
 				contents, err := os.ReadFile(filepath.Join(workingDir, ".bundle", "config.bak"))
 				Expect(err).NotTo(HaveOccurred())
@@ -326,7 +326,7 @@ if strings.Contains(strings.Join(execution.Args, " "), "config get cache_path") 
 
 					Expect(executions).To(HaveLen(2))
 					Expect(executions[0].Args).To(Equal([]string{"config", "get", "cache_path"}))
-					Expect(executions[1].Args).To(Equal([]string{"install", "--update=ruby"}))
+					Expect(executions[1].Args).To(Equal([]string{"install"}))
 
 					contents, err := os.ReadFile(filepath.Join(layerPath, "config"))
 					Expect(err).NotTo(HaveOccurred())

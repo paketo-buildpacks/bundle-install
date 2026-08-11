@@ -244,12 +244,6 @@ func Build(
 				logger.Break()
 
 				layer.LaunchEnv.Default("BUNDLE_USER_CONFIG", filepath.Join(layer.Path, "config"))
-			// Set BUNDLE_DEPLOYMENT mode to prevent bundler from attempting
-			// to modify the Gemfile.lock during 'bundle exec' at launch time.
-			// In deployment mode, bundler validates that Gemfile and Gemfile.lock
-			// are in sync but does not write to the lockfile, avoiding permission
-			// errors on read-only /workspace.
-			layer.LaunchEnv.Default("BUNDLE_DEPLOYMENT", "true")
 			layer.Metadata = map[string]interface{}{
 				"stack":        context.Stack,
 				"cache_sha":    checksum,
@@ -261,9 +255,9 @@ func Build(
 			var sbomContent sbom.SBOM
 
 			duration, err = clock.Measure(func() error {
-					sbomContent, err = sbomGenerator.Generate(context.WorkingDir)
-					return err
-				})
+				sbomContent, err = sbomGenerator.Generate(context.WorkingDir)
+				return err
+			})
 				if err != nil {
 					return packit.BuildResult{}, err
 				}
