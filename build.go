@@ -256,10 +256,11 @@ func Build(
 				"ruby_version": rubyVersion,
 			}
 
-				logger.GeneratingSBOM(layer.Path)
+			logger.GeneratingSBOM(layer.Path)
 
-				var sbomContent sbom.SBOM
-				duration, err = clock.Measure(func() error {
+			var sbomContent sbom.SBOM
+
+			duration, err = clock.Measure(func() error {
 					sbomContent, err = sbomGenerator.Generate(context.WorkingDir)
 					return err
 				})
