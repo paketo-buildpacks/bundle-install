@@ -21,6 +21,7 @@ import (
 type InstallProcess interface {
 	ShouldRun(metadata map[string]interface{}, workingDir string) (should bool, checksum string, rubyVersion string, err error)
 	Execute(workingDir, layerPath string, config map[string]string, keepBuildFiles bool) error
+	RegenerateLockfile(workingDir string) error
 }
 
 // EntryResolver defines the interface for determining what phases of the
@@ -244,21 +245,21 @@ func Build(
 				logger.Break()
 
 				layer.LaunchEnv.Default("BUNDLE_USER_CONFIG", filepath.Join(layer.Path, "config"))
-			layer.LaunchEnv.Default("BUNDLE_DEPLOYMENT", "true")
-			layer.Metadata = map[string]interface{}{
-				"stack":        context.Stack,
-				"cache_sha":    checksum,
-				"ruby_version": rubyVersion,
-			}
+				layer.LaunchEnv.Default("BUNDLE_DEPLOYMENT", "true")
+				layer.Metadata = map[string]interface{}{
+					"stack":        context.Stack,
+					"cache_sha":    checksum,
+					"ruby_version": rubyVersion,
+				}
 
-			logger.GeneratingSBOM(layer.Path)
+				logger.GeneratingSBOM(layer.Path)
 
-			var sbomContent sbom.SBOM
+				var sbomContent sbom.SBOM
 
-			duration, err = clock.Measure(func() error {
-				sbomContent, err = sbomGenerator.Generate(context.WorkingDir)
-				return err
-			})
+				duration, err = clock.Measure(func() error {
+					sbomContent, err = sbomGenerator.Generate(context.WorkingDir)
+					return err
+				})
 				if err != nil {
 					return packit.BuildResult{}, err
 				}
@@ -275,7 +276,19 @@ func Build(
 				logger.Process("Reusing cached layer %s", layer.Path)
 				logger.Break()
 			}
+
 			layers = append(layers, layer)
+		}
+
+		if build || launch {
+			// Regenerate the lockfile once, regardless of whether either install
+			// process actually executed above. The app's Gemfile.lock is never
+			// cached between builds--it is always freshly copied from the app
+			// source--so even when both layers are reused, the freshly copied
+			// Gemfile.lock must be re-stamped with the current Ruby version.
+			if err := installProcess.RegenerateLockfile(context.WorkingDir); err != nil {
+				return packit.BuildResult{}, err
+			}
 		}
 
 		for _, layer := range layers {
