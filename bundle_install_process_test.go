@@ -228,10 +228,10 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 
 				Expect(executions).To(HaveLen(3))
 
-				Expect(executions[0].Args).To(Equal([]string{"config", "--global", "path", "some-dir"}))
+				Expect(executions[0].Args).To(Equal([]string{"config", "set", "--global", "path", "some-dir"}))
 				Expect(executions[0].Env).To(ContainElement(fmt.Sprintf("BUNDLE_USER_CONFIG=%s", filepath.Join(layerPath, "config"))))
 
-				Expect(executions[1].Args).To(Equal([]string{"config", "--global", "cache_path", "--parseable"}))
+				Expect(executions[1].Args).To(Equal([]string{"config", "get", "cache_path"}))
 				Expect(executions[1].Env).To(ContainElement(fmt.Sprintf("BUNDLE_USER_CONFIG=%s", filepath.Join(layerPath, "config"))))
 
 				Expect(executions[2].Args).To(Equal([]string{"install"}))
@@ -249,8 +249,8 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(executions).To(HaveLen(3))
-				Expect(executions[0].Args).To(Equal([]string{"config", "--global", "clean", "true"}))
-				Expect(executions[1].Args).To(Equal([]string{"config", "--global", "cache_path", "--parseable"}))
+				Expect(executions[0].Args).To(Equal([]string{"config", "set", "--global", "clean", "true"}))
+				Expect(executions[1].Args).To(Equal([]string{"config", "get", "cache_path"}))
 				Expect(executions[2].Args).To(Equal([]string{"install", "--local"}))
 			})
 		})
@@ -261,9 +261,9 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
 					executions = append(executions, execution)
 
-					if strings.Contains(strings.Join(execution.Args, " "), "config --global cache_path --parseable") {
-							_, err := fmt.Fprintf(execution.Stdout, "cache_path=other_dir/other_cache")
-							Expect(err).NotTo(HaveOccurred())
+					if strings.Contains(strings.Join(execution.Args, " "), "config get cache_path") {
+						_, err := fmt.Fprintf(execution.Stdout, "other_dir/other_cache")
+						Expect(err).NotTo(HaveOccurred())
 					}
 
 					return nil
@@ -277,8 +277,8 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(executions).To(HaveLen(3))
-				Expect(executions[0].Args).To(Equal([]string{"config", "--global", "without", "development:test"}))
-				Expect(executions[1].Args).To(Equal([]string{"config", "--global", "cache_path", "--parseable"}))
+				Expect(executions[0].Args).To(Equal([]string{"config", "set", "--global", "without", "development:test"}))
+				Expect(executions[1].Args).To(Equal([]string{"config", "get", "cache_path"}))
 				Expect(executions[2].Args).To(Equal([]string{"install", "--local"}))
 			})
 		})
@@ -294,7 +294,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(executions).To(HaveLen(2))
-				Expect(executions[0].Args).To(Equal([]string{"config", "--global", "cache_path", "--parseable"}))
+				Expect(executions[0].Args).To(Equal([]string{"config", "get", "cache_path"}))
 				Expect(executions[1].Args).To(Equal([]string{"install"}))
 
 				contents, err := os.ReadFile(filepath.Join(layerPath, "config"))
@@ -307,7 +307,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(executions).To(HaveLen(2))
-				Expect(executions[0].Args).To(Equal([]string{"config", "--global", "cache_path", "--parseable"}))
+				Expect(executions[0].Args).To(Equal([]string{"config", "get", "cache_path"}))
 				Expect(executions[1].Args).To(Equal([]string{"install"}))
 
 				contents, err := os.ReadFile(filepath.Join(workingDir, ".bundle", "config.bak"))
@@ -325,13 +325,11 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 					Expect(err).NotTo(HaveOccurred())
 
 					Expect(executions).To(HaveLen(2))
-					Expect(executions[0].Args).To(Equal([]string{"config", "--global", "cache_path", "--parseable"}))
+					Expect(executions[0].Args).To(Equal([]string{"config", "get", "cache_path"}))
 					Expect(executions[1].Args).To(Equal([]string{"install"}))
-
 					contents, err := os.ReadFile(filepath.Join(layerPath, "config"))
 					Expect(err).NotTo(HaveOccurred())
 					Expect(string(contents)).To(Equal("other-bundle-config"))
-
 					contents, err = os.ReadFile(filepath.Join(workingDir, ".bundle", "config"))
 					Expect(err).NotTo(HaveOccurred())
 					Expect(string(contents)).To(Equal("other-bundle-config"))
@@ -398,7 +396,7 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 			context("when bundle config fails", func() {
 				it.Before(func() {
 					executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
-						if strings.Contains(strings.Join(execution.Args, " "), "config --global path") {
+						if strings.Contains(strings.Join(execution.Args, " "), "config set --global path") {
 							_, err := fmt.Fprint(execution.Stdout, "stdout output")
 							Expect(err).NotTo(HaveOccurred())
 							_, err = fmt.Fprint(execution.Stderr, "stderr output")
@@ -475,6 +473,33 @@ func testBundleInstallProcess(t *testing.T, context spec.G, it spec.S) {
 					Expect(err).To(MatchError(ContainSubstring("failed to cleanup gem extension build files")))
 					Expect(err).To(MatchError(ContainSubstring("permission denied")))
 				})
+			})
+		})
+	})
+
+	context("RegenerateLockfile", func() {
+		it("runs bundle lock in the working directory without referencing any layer", func() {
+			err := installProcess.RegenerateLockfile(workingDir)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(executions).To(HaveLen(1))
+			Expect(executions[0].Args).To(Equal([]string{"lock"}))
+			Expect(executions[0].Dir).To(Equal(workingDir))
+			Expect(executions[0].Env).NotTo(ContainElement(ContainSubstring("BUNDLE_USER_CONFIG")))
+		})
+
+		context("when bundle lock fails", func() {
+			it.Before(func() {
+				executable.ExecuteCall.Stub = func(execution pexec.Execution) error {
+					executions = append(executions, execution)
+					return errors.New("bundle lock failed")
+				}
+			})
+
+			it("returns an error", func() {
+				err := installProcess.RegenerateLockfile(workingDir)
+				Expect(err).To(MatchError(ContainSubstring("failed to regenerate lockfile")))
+				Expect(err).To(MatchError(ContainSubstring("bundle lock failed")))
 			})
 		})
 	})

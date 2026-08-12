@@ -17,6 +17,17 @@ type InstallProcess struct {
 		}
 		Stub func(string, string, map[string]string, bool) error
 	}
+	RegenerateLockfileCall struct {
+		mutex     sync.Mutex
+		CallCount int
+		Receives  struct {
+			WorkingDir string
+		}
+		Returns struct {
+			Error error
+		}
+		Stub func(string) error
+	}
 	ShouldRunCall struct {
 		mutex     sync.Mutex
 		CallCount int
@@ -48,6 +59,16 @@ func (f *InstallProcess) Execute(param1 string, param2 string, param3 map[string
 		return f.ExecuteCall.Stub(param1, param2, param3, param4)
 	}
 	return f.ExecuteCall.Returns.Error
+}
+func (f *InstallProcess) RegenerateLockfile(param1 string) error {
+	f.RegenerateLockfileCall.mutex.Lock()
+	defer f.RegenerateLockfileCall.mutex.Unlock()
+	f.RegenerateLockfileCall.CallCount++
+	f.RegenerateLockfileCall.Receives.WorkingDir = param1
+	if f.RegenerateLockfileCall.Stub != nil {
+		return f.RegenerateLockfileCall.Stub(param1)
+	}
+	return f.RegenerateLockfileCall.Returns.Error
 }
 func (f *InstallProcess) ShouldRun(param1 map[string]interface {
 }, param2 string) (bool, string, string, error) {
